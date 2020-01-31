@@ -1,0 +1,5 @@
+add_subdirectory(glew)
+add_subdirectory(ffmpeg)
+add_subdirectory(libpng)
+add_subdirectory(libconfuse)
+add_subdirectory(vgmstream)
