@@ -55,11 +55,8 @@ uint movie_width, movie_height;
 double movie_fps;
 double movie_duration;
 
-bool skip_frames;
 bool skipping_frames;
 uint skipped_frames;
-
-bool movie_sync_debug;
 
 IDirectSoundBuffer *sound_buffer = 0;
 uint sound_buffer_size;
@@ -69,9 +66,6 @@ bool first_audio_packet;
 
 time_t timer_freq;
 time_t start_time;
-
-void (*draw_movie_quad_bgra)(GLuint, uint, uint);
-void (*draw_movie_quad_yuv)(GLuint *, uint, uint, bool);
 
 void ffmpeg_log_callback(void* ptr, int level, const char* fmt, va_list vl)
 {
@@ -105,15 +99,10 @@ void ffmpeg_log_callback(void* ptr, int level, const char* fmt, va_list vl)
 	}
 }
 
-void ffmpeg_movie_init(void *plugin_draw_movie_quad_bgra, void *plugin_draw_movie_quad_yuv, bool plugin_skip_frames, bool plugin_movie_sync_debug)
+void ffmpeg_movie_init()
 {
 	av_log_set_level(AV_LOG_VERBOSE);
 	av_log_set_callback(ffmpeg_log_callback);
-
-	draw_movie_quad_bgra = plugin_draw_movie_quad_bgra;
-	draw_movie_quad_yuv = plugin_draw_movie_quad_yuv;
-	skip_frames = plugin_skip_frames;
-	movie_sync_debug = plugin_movie_sync_debug;
 
 	info("FFMpeg movie player plugin loaded\n");
 	info("FFMpeg version 4.2.1, Copyright (c) 2000-2019 Fabrice Bellard, et al.\n");
@@ -369,7 +358,7 @@ void buffer_bgra_frame(char *data, int upload_stride)
 
 void draw_bgra_frame(uint buffer_index)
 {
-	draw_movie_quad_bgra(video_buffer[buffer_index].bgra_texture, movie_width, movie_height);
+	gl_draw_movie_quad_bgra(video_buffer[buffer_index].bgra_texture, movie_width, movie_height);
 }
 
 void upload_yuv_texture(char **planes, uint *strides, uint num, uint buffer_index)
@@ -419,7 +408,7 @@ void draw_yuv_frame(uint buffer_index, bool full_range)
 	glActiveTexture(GL_TEXTURE0 + 0);
 	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[0]);
 
-	draw_movie_quad_yuv(video_buffer[buffer_index].yuv_textures, movie_width, movie_height, full_range);
+	gl_draw_movie_quad_yuv(video_buffer[buffer_index].yuv_textures, movie_width, movie_height, full_range);
 }
 
 // display the next frame

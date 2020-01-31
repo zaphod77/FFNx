@@ -55,7 +55,7 @@ void movie_init()
 		replace_function(common_externals.get_movie_frame, ff8_get_movie_frame);
 	}
 
-	ffmpeg_movie_init(gl_draw_movie_quad_bgra, gl_draw_movie_quad_yuv, common_externals.directsound, skip_frames, movie_sync_debug);
+	ffmpeg_movie_init();
 }
 
 bool ff7_prepare_movie(char *name, uint loop, struct dddevice **dddevice, uint dd2interface)
