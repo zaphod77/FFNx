@@ -1,24 +1,6 @@
 #define inline _inline
 
-#ifdef DEBUG
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_NEW
-#endif
-
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-#include <libswresample/swresample.h>
-#include <windows.h>
-#include <gl/glew.h>
-#include <math.h>
-#include <sys/timeb.h>
-#include <dsound.h>
-#include <dbghelp.h>
-
-#include "types.h"
+#include "ffmpeg_movies.h"
 
 // 10 frames
 #define VIDEO_BUFFER_SIZE 10
@@ -88,114 +70,8 @@ bool first_audio_packet;
 time_t timer_freq;
 time_t start_time;
 
-void (*trace)(char *, ...);
-void (*info)(char *, ...);
-void (*glitch)(char *, ...);
-void (*error)(char *, ...);
-
 void (*draw_movie_quad_bgra)(GLuint, uint, uint);
 void (*draw_movie_quad_yuv)(GLuint *, uint, uint, bool);
-
-IDirectSound **directsound;
-
-BOOL APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
-{
-#ifdef DEBUG
-	int crtDbg = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-	crtDbg |= _CRTDBG_LEAK_CHECK_DF;
-	crtDbg &= ~_CRTDBG_CHECK_CRT_DF;
-	_CrtSetDbgFlag(crtDbg);
-#endif
-
-	return TRUE;
-}
-
-// Prints stack trace based on context record
-// Via https://stackoverflow.com/a/50208684
-void printStack(CONTEXT* ctx)
-{
-	BOOL result;
-	HANDLE process;
-	HANDLE thread;
-	HMODULE hModule;
-
-	STACKFRAME stack;
-	ULONG frame;
-	DWORD64 displacement;
-
-	DWORD disp;
-	IMAGEHLP_LINE* line;
-
-	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-	char name[STACK_MAX_NAME_LENGTH];
-	char module[STACK_MAX_NAME_LENGTH];
-	PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
-
-	memset(&stack, 0, sizeof(STACKFRAME));
-
-	process = GetCurrentProcess();
-	thread = GetCurrentThread();
-	displacement = 0;
-	stack.AddrPC.Offset = (*ctx).Eip;
-	stack.AddrPC.Mode = AddrModeFlat;
-	stack.AddrStack.Offset = (*ctx).Esp;
-	stack.AddrStack.Mode = AddrModeFlat;
-	stack.AddrFrame.Offset = (*ctx).Ebp;
-	stack.AddrFrame.Mode = AddrModeFlat;
-
-	SymInitialize(process, NULL, TRUE); //load symbols
-
-	for (frame = 0;; frame++)
-	{
-		//get next call from stack
-		result = StackWalk(
-			IMAGE_FILE_MACHINE_I386,
-			process,
-			thread,
-			&stack,
-			ctx,
-			NULL,
-			SymFunctionTableAccess,
-			SymGetModuleBase,
-			NULL);
-
-		if (!result)
-			break;
-
-		//get symbol name for address
-		pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-		pSymbol->MaxNameLen = MAX_SYM_NAME;
-		SymFromAddr(process, (ULONG64)stack.AddrPC.Offset, &displacement, pSymbol);
-
-		line = (IMAGEHLP_LINE*)malloc(sizeof(IMAGEHLP_LINE));
-		line->SizeOfStruct = sizeof(IMAGEHLP_LINE);
-
-		//try to get line
-		if (SymGetLineFromAddr(process, stack.AddrPC.Offset, &disp, line))
-		{
-			trace("\tat %s in %s: line: %lu: address: 0x%I64x\n", pSymbol->Name, line->FileName, line->LineNumber, pSymbol->Address);
-		}
-		else
-		{
-			hModule = NULL;
-			lstrcpyA(module, "");
-			GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				(LPCTSTR)(stack.AddrPC.Offset), &hModule);
-
-			//at least print module name
-			if (hModule != NULL)
-				GetModuleFileNameA(hModule, module, STACK_MAX_NAME_LENGTH);
-
-			trace("in %s\n", module);
-
-			//failed to get line
-			trace("\tat %s, address 0x%I64x\n", pSymbol->Name, pSymbol->Address);
-		}
-
-		free(line);
-		line = NULL;
-	}
-}
 
 void ffmpeg_log_callback(void* ptr, int level, const char* fmt, va_list vl)
 {
@@ -229,18 +105,13 @@ void ffmpeg_log_callback(void* ptr, int level, const char* fmt, va_list vl)
 	}
 }
 
-__declspec(dllexport) void movie_init(void *plugin_trace, void *plugin_info, void *plugin_glitch, void *plugin_error, void *plugin_draw_movie_quad_bgra, void *plugin_draw_movie_quad_yuv, IDirectSound **plugin_directsound, bool plugin_skip_frames, bool plugin_movie_sync_debug)
+void ffmpeg_movie_init(void *plugin_draw_movie_quad_bgra, void *plugin_draw_movie_quad_yuv, bool plugin_skip_frames, bool plugin_movie_sync_debug)
 {
 	av_log_set_level(AV_LOG_VERBOSE);
 	av_log_set_callback(ffmpeg_log_callback);
 
-	trace = plugin_trace;
-	info = plugin_info;
-	glitch = plugin_glitch;
-	error = plugin_error;
 	draw_movie_quad_bgra = plugin_draw_movie_quad_bgra;
 	draw_movie_quad_yuv = plugin_draw_movie_quad_yuv;
-	directsound = plugin_directsound;
 	skip_frames = plugin_skip_frames;
 	movie_sync_debug = plugin_movie_sync_debug;
 
@@ -260,7 +131,7 @@ __declspec(dllexport) void movie_init(void *plugin_trace, void *plugin_info, voi
 }
 
 // clean up anything we have allocated
-__declspec(dllexport) void release_movie_objects()
+void ffmpeg_release_movie_objects()
 {
 	uint i;
 
@@ -268,7 +139,7 @@ __declspec(dllexport) void release_movie_objects()
 	if (codec_ctx) avcodec_close(codec_ctx);
 	if (acodec_ctx) avcodec_close(acodec_ctx);
 	if (format_ctx) avformat_close_input(&format_ctx);
-	if (sound_buffer && *directsound) IDirectSoundBuffer_Release(sound_buffer);
+	if (sound_buffer && *common_externals.directsound) IDirectSoundBuffer_Release(sound_buffer);
 	if (swr_ctx) {
 		swr_close(swr_ctx);
 		swr_free(&swr_ctx);
@@ -294,7 +165,7 @@ __declspec(dllexport) void release_movie_objects()
 }
 
 // prepare a movie for playback
-__declspec(dllexport) uint prepare_movie(char *name)
+uint ffmpeg_prepare_movie(char *name)
 {
 	uint i;
 	WAVEFORMATEX sound_format;
@@ -304,14 +175,14 @@ __declspec(dllexport) uint prepare_movie(char *name)
 	if(ret = avformat_open_input(&format_ctx, name, NULL, NULL))
 	{
 		error("prepare_movie: couldn't open movie file: %s\n", name);
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
 	if(avformat_find_stream_info(format_ctx, NULL) < 0)
 	{
 		error("prepare_movie: couldn't find stream info\n");
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
@@ -326,7 +197,7 @@ __declspec(dllexport) uint prepare_movie(char *name)
 	if(videostream == -1)
 	{
 		error("prepare_movie: no video stream found\n");
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
@@ -339,14 +210,14 @@ __declspec(dllexport) uint prepare_movie(char *name)
 	{
 		error("prepare_movie: no video codec found\n");
 		codec_ctx = 0;
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
 	if(avcodec_open2(codec_ctx, codec, NULL) < 0)
 	{
 		error("prepare_movie: couldn't open video codec\n");
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
@@ -357,14 +228,14 @@ __declspec(dllexport) uint prepare_movie(char *name)
 		if(!acodec)
 		{
 			error("prepare_movie: no audio codec found\n");
-			release_movie_objects();
+			ffmpeg_release_movie_objects();
 			goto exit;
 		}
 
 		if(avcodec_open2(acodec_ctx, acodec, NULL) < 0)
 		{
 			error("prepare_movie: couldn't open audio codec\n");
-			release_movie_objects();
+			ffmpeg_release_movie_objects();
 			goto exit;
 		}
 	}
@@ -382,7 +253,7 @@ __declspec(dllexport) uint prepare_movie(char *name)
 	if(movie_width > max_texture_size || movie_height > max_texture_size)
 	{
 		error("prepare_movie: movie dimensions exceed max texture size, skipping\n");
-		release_movie_objects();
+		ffmpeg_release_movie_objects();
 		goto exit;
 	}
 
@@ -447,7 +318,7 @@ __declspec(dllexport) uint prepare_movie(char *name)
 		sbdesc.dwReserved = 0;
 		sbdesc.dwBufferBytes = sound_buffer_size;
 
-		if(ret = IDirectSound_CreateSoundBuffer(*directsound, (LPCDSBUFFERDESC)&sbdesc, &sound_buffer, 0))
+		if(ret = IDirectSound_CreateSoundBuffer(*common_externals.directsound, (LPCDSBUFFERDESC)&sbdesc, &sound_buffer, 0))
 		{
 			error("prepare_movie: couldn't create sound buffer (%i, %i, %i, %i)\n", acodec_ctx->sample_fmt, acodec_ctx->bit_rate, acodec_ctx->sample_rate, acodec_ctx->channels);
 			sound_buffer = 0;
@@ -465,9 +336,9 @@ exit:
 }
 
 // stop movie playback, no video updates will be requested after this so all we have to do is stop the audio
-__declspec(dllexport) void stop_movie()
+void ffmpeg_stop_movie()
 {
-	if(sound_buffer && *directsound) IDirectSoundBuffer_Stop(sound_buffer);
+	if(sound_buffer && *common_externals.directsound) IDirectSoundBuffer_Stop(sound_buffer);
 }
 
 void buffer_bgra_frame(char *data, int upload_stride)
@@ -552,7 +423,7 @@ void draw_yuv_frame(uint buffer_index, bool full_range)
 }
 
 // display the next frame
-__declspec(dllexport) bool update_movie_sample()
+bool ffmpeg_update_movie_sample()
 {
 	AVPacket packet;
 	int ret;
@@ -750,20 +621,20 @@ __declspec(dllexport) bool update_movie_sample()
 }
 
 // draw the current frame, don't update anything
-__declspec(dllexport) void draw_current_frame()
+void ffmpeg_draw_current_frame()
 {
 	if(use_bgra_texture) draw_bgra_frame((vbuffer_read - 1) % VIDEO_BUFFER_SIZE);
 	else draw_yuv_frame((vbuffer_read - 1) % VIDEO_BUFFER_SIZE, codec_ctx->color_range == AVCOL_RANGE_JPEG);
 }
 
 // loop back to the beginning of the movie
-__declspec(dllexport) void loop()
+void ffmpeg_loop()
 {
 	if(format_ctx) avformat_seek_file(format_ctx, -1, 0, 0, 0, 0);
 }
 
 // get the current frame number
-__declspec(dllexport) uint get_movie_frame()
+uint ffmpeg_get_movie_frame()
 {
 	if(movie_fps != 15.0 && movie_fps < 100.0) return (uint)ceil(movie_frame_counter * 15.0 / movie_fps);
 	else return movie_frame_counter;

@@ -1,31 +1,8 @@
-#ifdef DEBUG
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#define DEBUG_NEW new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#define new DEBUG_NEW
-#endif
-
-#include <windows.h>
-#include <dsound.h>
-#include <vgmstream.h>
-#include <math.h>
-#include <process.h>
-
-#include "types.h"
+#include "music.h"
 
 static CRITICAL_SECTION mutex;
 
 #define AUDIO_BUFFER_SIZE 5
-
-static IDirectSound **directsound;
-
-const char *basedir;
-
-// logging functions, printf-style, trace output is not visible in a release build of the driver
-void (*trace)(char *, ...);
-void (*info)(char *, ...);
-void (*glitch)(char *, ...);
-void (*error)(char *, ...);
 
 static VGMSTREAM *vgmstream[100];
 static uint current_id;
@@ -49,21 +26,9 @@ static char *crossfade_midi;
 static int master_volume;
 static int song_volume;
 
-BOOL APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
-{
-#ifdef DEBUG
-	int crtDbg = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-	crtDbg |= _CRTDBG_LEAK_CHECK_DF;
-	crtDbg &= ~_CRTDBG_CHECK_CRT_DF;
-	_CrtSetDbgFlag(crtDbg);
-#endif
-
-	return TRUE;
-}
-
 void apply_volume()
 {
-	if(sound_buffer && *directsound)
+	if(sound_buffer && *common_externals.directsound)
 	{
 		int volume = (((song_volume * 100) / 127) * master_volume) / 100;
 		float decibel = 20.0f * log10f(volume / 100.0f);
@@ -112,7 +77,7 @@ void buffer_bytes(uint bytes)
 
 void cleanup()
 {
-	if(sound_buffer && *directsound) IDirectSoundBuffer_Release(sound_buffer);
+	if(sound_buffer && *common_externals.directsound) IDirectSoundBuffer_Release(sound_buffer);
 
 	sound_buffer = 0;
 }
@@ -160,7 +125,7 @@ void load_song(char *midi, uint id)
 	sbdesc.dwReserved = 0;
 	sbdesc.dwBufferBytes = sound_buffer_size;
 
-	if(IDirectSound_CreateSoundBuffer(*directsound, (LPCDSBUFFERDESC)&sbdesc, &sound_buffer, 0))
+	if(IDirectSound_CreateSoundBuffer(*common_externals.directsound, (LPCDSBUFFERDESC)&sbdesc, &sound_buffer, 0))
 	{
 		error("couldn't create sound buffer (%i, %i)\n", vgmstream[id]->channels, vgmstream[id]->sample_rate);
 		sound_buffer = 0;
@@ -205,14 +170,14 @@ void render_thread(void *parameter)
 
 		EnterCriticalSection(&mutex);
 
-		if(*directsound)
+		if(*common_externals.directsound)
 		{
-			if((*directsound)->lpVtbl->Release != dsound_release_hook)
+			if((*common_externals.directsound)->lpVtbl->Release != dsound_release_hook)
 			{
-				real_dsound_release = (*directsound)->lpVtbl->Release;
-				memcpy(&vtbl, (*directsound)->lpVtbl, sizeof(*((*directsound)->lpVtbl)));
+				real_dsound_release = (*common_externals.directsound)->lpVtbl->Release;
+				memcpy(&vtbl, (*common_externals.directsound)->lpVtbl, sizeof(*((*common_externals.directsound)->lpVtbl)));
 
-				(*directsound)->lpVtbl = &vtbl;
+				(*common_externals.directsound)->lpVtbl = &vtbl;
 
 				vtbl.Release = dsound_release_hook;
 			}
@@ -254,7 +219,7 @@ void render_thread(void *parameter)
 				}
 			}
 
-			if(sound_buffer && *directsound)
+			if(sound_buffer && *common_externals.directsound)
 			{
 				uint play_cursor;
 				uint bytes_to_write = 0;
@@ -287,15 +252,8 @@ void render_thread(void *parameter)
 }
 
 // called once just after the plugin has been loaded, <plugin_directsound> is a pointer to FF7s own directsound pointer
-__declspec(dllexport) void music_init(void *plugin_trace, void *plugin_info, void *plugin_glitch, void *plugin_error, IDirectSound **plugin_directsound, const char *plugin_basedir)
+void vgm_music_init()
 {
-	trace = plugin_trace;
-	info = plugin_info;
-	glitch = plugin_glitch;
-	error = plugin_error;
-	directsound = plugin_directsound;
-	basedir = plugin_basedir;
-
 	InitializeCriticalSection(&mutex);
 
 	_beginthread(render_thread, 0, 0);
@@ -304,7 +262,7 @@ __declspec(dllexport) void music_init(void *plugin_trace, void *plugin_info, voi
 }
 
 // start playing some music, <midi> is the name of the MIDI file without the .mid extension
-__declspec(dllexport) void play_music(char *midi, uint id)
+void vgm_play_music(char *midi, uint id)
 {
 	trace("play music: %s\n", midi);
 
@@ -321,7 +279,7 @@ __declspec(dllexport) void play_music(char *midi, uint id)
 	LeaveCriticalSection(&mutex);
 }
 
-__declspec(dllexport) void stop_music()
+void vgm_stop_music()
 {
 	EnterCriticalSection(&mutex);
 
@@ -333,7 +291,7 @@ __declspec(dllexport) void stop_music()
 }
 
 // cross fade to a new song
-__declspec(dllexport) void cross_fade_music(char *midi, uint id, int time)
+void vgm_cross_fade_music(char *midi, uint id, int time)
 {
 	int fade_time = time * 2;
 
@@ -364,7 +322,7 @@ __declspec(dllexport) void cross_fade_music(char *midi, uint id, int time)
 	LeaveCriticalSection(&mutex);
 }
 
-__declspec(dllexport) void pause_music()
+void vgm_pause_music()
 {
 	EnterCriticalSection(&mutex);
 
@@ -373,7 +331,7 @@ __declspec(dllexport) void pause_music()
 	LeaveCriticalSection(&mutex);
 }
 
-__declspec(dllexport) void resume_music()
+void vgm_resume_music()
 {
 	EnterCriticalSection(&mutex);
 
@@ -386,7 +344,7 @@ __declspec(dllexport) void resume_music()
 // it's important for some field scripts that this function returns true atleast once when a song has been requested
 // 
 // even if there's nothing to play because of errors/missing files you cannot return false every time
-__declspec(dllexport) bool music_status()
+bool vgm_music_status()
 {
 	static bool last_status;
 	bool status;
@@ -407,7 +365,7 @@ __declspec(dllexport) bool music_status()
 	return status;
 }
 
-__declspec(dllexport) void set_master_music_volume(int volume)
+void vgm_set_master_music_volume(int volume)
 {
 	EnterCriticalSection(&mutex);
 
@@ -418,7 +376,7 @@ __declspec(dllexport) void set_master_music_volume(int volume)
 	LeaveCriticalSection(&mutex);
 }
 
-__declspec(dllexport) void set_music_volume(int volume)
+void vgm_set_music_volume(int volume)
 {
 	EnterCriticalSection(&mutex);
 
@@ -434,7 +392,7 @@ __declspec(dllexport) void set_music_volume(int volume)
 }
 
 // make a volume transition
-__declspec(dllexport) void set_music_volume_trans(int volume, int step)
+void vgm_set_music_volume_trans(int volume, int step)
 {
 	trace("set volume trans: %i (%i)\n", volume, step);
 
@@ -460,7 +418,7 @@ __declspec(dllexport) void set_music_volume_trans(int volume, int step)
 	LeaveCriticalSection(&mutex);
 }
 
-__declspec(dllexport) void set_music_tempo(unsigned char tempo)
+void vgm_set_music_tempo(unsigned char tempo)
 {
 	uint dstempo;
 

@@ -33,6 +33,7 @@
 #include <time.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <dsound.h>
 
 #include "types.h"
 #include "compile_cfg.h"
@@ -165,7 +166,7 @@ struct common_externals
 	void *(*assert_free)(void *, const char *, uint);
 	void *(*assert_malloc)(uint, const char *, uint);
 	void *(*assert_calloc)(uint, uint, const char *, uint);
-	void **directsound;
+	IDirectSound **directsound;
 	struct palette *(*create_palette_for_tex)(uint, struct tex_header *, struct texture_set *);
 	struct game_obj *(*get_game_object)();
 	struct texture_format *(*create_texture_format)();

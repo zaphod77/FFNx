@@ -28,46 +28,10 @@
 #include "cfg.h"
 #include "log.h"
 #include "patch.h"
-
-HMODULE music_lib;
-
-struct music_plugin *music;
+#include "vgmstream_music/music.h"
 
 void music_init()
 {
-	music_lib = LoadLibraryA(music_plugin);
-
-	music = driver_calloc(1, sizeof(*music));
-
-	music->music_init = (void *)GetProcAddress(music_lib, "music_init");
-	music->play_music = (void *)GetProcAddress(music_lib, "play_music");
-	music->cross_fade_music = (void *)GetProcAddress(music_lib, "cross_fade_music");
-	music->pause_music = (void *)GetProcAddress(music_lib, "pause_music");
-	music->resume_music = (void *)GetProcAddress(music_lib, "resume_music");
-	music->stop_music = (void *)GetProcAddress(music_lib, "stop_music");
-	music->music_status = (void *)GetProcAddress(music_lib, "music_status");
-	music->set_master_music_volume = (void *)GetProcAddress(music_lib, "set_master_music_volume");
-	music->set_music_volume = (void *)GetProcAddress(music_lib, "set_music_volume");
-	music->set_music_volume_trans = (void *)GetProcAddress(music_lib, "set_music_volume_trans");
-	music->set_music_tempo = (void *)GetProcAddress(music_lib, "set_music_tempo");
-
-	if(!(music->music_init && 
-		music->play_music && 
-		music->cross_fade_music && 
-		music->pause_music && 
-		music->resume_music && 
-		music->stop_music && 
-		music->music_status && 
-		music->set_master_music_volume && 
-		music->set_music_volume && 
-		music->set_music_volume_trans && 
-		music->set_music_tempo))
-	{
-		MessageBoxA(hwnd, "Error loading music plugin.", "Error", 0);
-		error("could not load music plugin: %s\n", music_plugin);
-		return;
-	}
-
 	replace_function(common_externals.midi_init, midi_init);
 	replace_function(common_externals.play_midi, play_midi);
 	replace_function(common_externals.cross_fade_midi, cross_fade_midi);
@@ -80,7 +44,7 @@ void music_init()
 	replace_function(common_externals.set_midi_volume_trans, set_midi_volume_trans);
 	replace_function(common_externals.set_midi_tempo, set_midi_tempo);
 
-	music->music_init(plugin_trace, plugin_info, plugin_glitch, plugin_error, common_externals.directsound, basedir);
+	vgm_music_init();
 }
 
 bool midi_init(uint unknown)
@@ -96,50 +60,50 @@ bool midi_init(uint unknown)
 
 void play_midi(uint midi)
 {
-	music->play_music(common_externals.get_midi_name(midi), midi);
+	vgm_play_music(common_externals.get_midi_name(midi), midi);
 }
 
 void cross_fade_midi(uint midi, uint time)
 {
-	music->cross_fade_music(common_externals.get_midi_name(midi), midi, time);
+	vgm_cross_fade_music(common_externals.get_midi_name(midi), midi, time);
 }
 
 void pause_midi()
 {
-	music->pause_music();
+	vgm_pause_music();
 }
 
 void restart_midi()
 {
-	music->resume_music();
+	vgm_resume_music();
 }
 
 void stop_midi()
 {
-	if(music->stop_music) music->stop_music();
+	if(vgm_stop_music) vgm_stop_music();
 }
 
 bool midi_status()
 {
-	return music->music_status();
+	return vgm_music_status();
 }
 
 void set_master_midi_volume(uint volume)
 {
-	music->set_master_music_volume(volume);
+	vgm_set_master_music_volume(volume);
 }
 
 void set_midi_volume(uint volume)
 {
-	music->set_music_volume(volume);
+	vgm_set_music_volume(volume);
 }
 
 void set_midi_volume_trans(uint volume, uint step)
 {
-	music->set_music_volume_trans(volume, step);
+	vgm_set_music_volume_trans(volume, step);
 }
 
 void set_midi_tempo(unsigned char tempo)
 {
-	music->set_music_tempo(tempo);
+	vgm_set_music_tempo(tempo);
 }
