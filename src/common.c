@@ -1917,7 +1917,8 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	common_externals.start = (*((uint *)0x400128) + 0x400000);
 
 	// game-specific initialization
-	if(!ff8) ret = ff7_load_driver(VPTR(game_object));
+	if(!ff8)
+		ret = ff7_load_driver(VPTR(game_object));
 	else
 	{
 		// VOBJ macro initialized the wrong variable
