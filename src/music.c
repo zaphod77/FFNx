@@ -32,19 +32,22 @@
 
 void music_init()
 {
-	replace_function(common_externals.midi_init, midi_init);
-	replace_function(common_externals.play_midi, play_midi);
-	replace_function(common_externals.cross_fade_midi, cross_fade_midi);
-	replace_function(common_externals.pause_midi, pause_midi);
-	replace_function(common_externals.restart_midi, restart_midi);
-	replace_function(common_externals.stop_midi, stop_midi);
-	replace_function(common_externals.midi_status, midi_status);
-	replace_function(common_externals.set_master_midi_volume, set_master_midi_volume);
-	replace_function(common_externals.set_midi_volume, set_midi_volume);
-	replace_function(common_externals.set_midi_volume_trans, set_midi_volume_trans);
-	replace_function(common_externals.set_midi_tempo, set_midi_tempo);
+	if (use_external_music)
+	{
+		replace_function(common_externals.midi_init, midi_init);
+		replace_function(common_externals.play_midi, play_midi);
+		replace_function(common_externals.cross_fade_midi, cross_fade_midi);
+		replace_function(common_externals.pause_midi, pause_midi);
+		replace_function(common_externals.restart_midi, restart_midi);
+		replace_function(common_externals.stop_midi, stop_midi);
+		replace_function(common_externals.midi_status, midi_status);
+		replace_function(common_externals.set_master_midi_volume, set_master_midi_volume);
+		replace_function(common_externals.set_midi_volume, set_midi_volume);
+		replace_function(common_externals.set_midi_volume_trans, set_midi_volume_trans);
+		replace_function(common_externals.set_midi_tempo, set_midi_tempo);
 
-	vgm_music_init();
+		vgm_music_init();
+	}
 }
 
 bool midi_init(uint unknown)
