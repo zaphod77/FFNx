@@ -7,8 +7,8 @@
 #include <math.h>
 #include <process.h>
 
-#include "types.h"
 #include "../log.h"
+#include "../types.h"
 
 void vgm_music_init();
 void vgm_play_music(char* midi, uint id);

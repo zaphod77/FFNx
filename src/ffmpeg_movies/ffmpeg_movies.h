@@ -12,8 +12,8 @@
 #include <dsound.h>
 #include <dbghelp.h>
 
-#include "types.h"
 #include "../log.h"
+#include "../types.h"
 
 void ffmpeg_movie_init(void* plugin_draw_movie_quad_bgra, void* plugin_draw_movie_quad_yuv, bool plugin_skip_frames, bool plugin_movie_sync_debug);
 void ffmpeg_release_movie_objects();
