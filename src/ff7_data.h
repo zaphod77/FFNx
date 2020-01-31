@@ -362,7 +362,7 @@ void ff7_data()
 	memcpy(modes, ff7_modes, sizeof(ff7_modes));
 	memcpy(font_map, ff7_font_map, sizeof(ff7_font_map));
 
-	font_map['�'] = 114;
+	font_map['\uFFFD'] = 114;
 
 	text_colors[TEXTCOLOR_GRAY] = 0;
 	text_colors[TEXTCOLOR_BLUE] = 2;
