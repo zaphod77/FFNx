@@ -1,5 +1,5 @@
 /* 
- * ff7_opengl - Complete OpenGL replacement of the Direct3D renderer used in 
+ * FFNx - Complete OpenGL replacement of the Direct3D renderer used in 
  * the original ports of Final Fantasy VII and Final Fantasy VIII for the PC.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -170,14 +170,14 @@ LONG WINAPI ExceptionHandler(EXCEPTION_POINTERS *ep)
 	if(!ff8)
 	{
 		MessageBoxA(0, "Oops! Something very bad happened.\n\nWrote crash.dmp to FF7 install dir.\nWrote emergency save to save/crash.ff7 dir.\n\n"
-			"Please provide a copy of those files along with APP.LOG when reporting this error at https://github.com/FFT-Hackers/FF7_OpenGL/issues.\n", "Error", MB_OK);
+			"Please provide a copy of those files along with APP.LOG when reporting this error at https://github.com/FFT-Hackers/FFNx/issues.\n", "Error", MB_OK);
 
 		save = true;
 	}
 	else
 	{
 		MessageBoxA(0, "Oops! Something very bad happened.\n\nWrote crash.dmp to FF8 install dir.\n\n"
-			"Please provide a copy of that file along with APP.LOG when reporting this error at https://github.com/FFT-Hackers/FF7_OpenGL/issues.\n", "Error", MB_OK);
+			"Please provide a copy of that file along with APP.LOG when reporting this error at https://github.com/FFT-Hackers/FFNx/issues.\n", "Error", MB_OK);
 
 		save = false;
 	}

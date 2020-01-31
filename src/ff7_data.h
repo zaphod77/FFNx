@@ -1,5 +1,5 @@
 /* 
- * ff7_opengl - Complete OpenGL replacement of the Direct3D renderer used in 
+ * FFNx - Complete OpenGL replacement of the Direct3D renderer used in 
  * the original ports of Final Fantasy VII and Final Fantasy VIII for the PC.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -362,7 +362,7 @@ void ff7_data()
 	memcpy(modes, ff7_modes, sizeof(ff7_modes));
 	memcpy(font_map, ff7_font_map, sizeof(ff7_font_map));
 
-	font_map['í'] = 114;
+	font_map['ï¿½'] = 114;
 
 	text_colors[TEXTCOLOR_GRAY] = 0;
 	text_colors[TEXTCOLOR_BLUE] = 2;
