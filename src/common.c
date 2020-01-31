@@ -316,7 +316,7 @@ void common_cleanup(struct game_obj *game_object)
 
 	unreplace_functions();
 
-	if(strlen(music_plugin) > 0) stop_midi();
+	if(use_external_music) stop_midi();
 }
 
 // unused and unnecessary

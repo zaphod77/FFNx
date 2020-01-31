@@ -26,8 +26,8 @@
 #include "types.h"
 
 extern char *mod_path;
-extern char *movie_plugin;
-extern char *music_plugin;
+extern bool use_external_movie;
+extern bool use_external_music;
 extern bool save_textures;
 extern char *traced_texture;
 extern char *vert_source;

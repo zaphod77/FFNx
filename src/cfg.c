@@ -31,8 +31,8 @@
 
 // configuration variables with their default values
 char *mod_path;
-char *movie_plugin;
-char *music_plugin;
+bool use_external_movie = true;
+bool use_external_music = true;
 bool save_textures = false;
 char *traced_texture;
 char *vert_source;
@@ -97,8 +97,8 @@ bool force_cache_purge = false;
 
 cfg_opt_t opts[] = {
 		CFG_SIMPLE_STR("mod_path", &mod_path),
-		CFG_SIMPLE_STR("movie_plugin", &movie_plugin),
-		CFG_SIMPLE_STR("music_plugin", &music_plugin),
+		CFG_SIMPLE_BOOL("use_external_movie", &use_external_movie),
+		CFG_SIMPLE_BOOL("use_external_music", &use_external_music),
 		CFG_SIMPLE_BOOL("save_textures", &save_textures),
 		CFG_SIMPLE_STR("traced_texture", &traced_texture),
 		CFG_SIMPLE_STR("vert_source", &vert_source),
@@ -184,9 +184,7 @@ void read_cfg()
 	cfg_t *cfg;
 
 	mod_path = _strdup("");
-	if(!ff8) movie_plugin = _strdup("plugins/ffmpeg_movies.fgp");
-	else movie_plugin = _strdup("");
-	music_plugin = _strdup("");
+	use_external_movie = !ff8;
 	vert_source = _strdup("shaders/main.vert");
 	frag_source = _strdup("shaders/main.frag");
 	yuv_source = _strdup("shaders/yuv.frag");

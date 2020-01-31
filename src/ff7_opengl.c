@@ -166,7 +166,7 @@ struct ff7_gfx_driver *ff7_load_driver(struct ff7_game_obj *game_object)
 	memset_code(ff7_externals.midi_fix + sizeof(midi_fix), 0x90, 18 - sizeof(midi_fix));
 
 	// prevent FF7 from trying to cleanup the built-in midi player if we're going to replace it
-	if(strlen(music_plugin) > 0) replace_function(ff7_externals.cleanup_midi, noop);
+	if(use_external_music) replace_function(ff7_externals.cleanup_midi, noop);
 
 	// snowboard crash fix
 	memcpy(ff7_externals.snowboard_fix, snowboard_fix, sizeof(snowboard_fix));
@@ -239,5 +239,5 @@ struct ff7_gfx_driver *ff7_load_driver(struct ff7_game_obj *game_object)
 void ff7_post_init()
 {
 	movie_init();
-	if(strlen(music_plugin) > 0) music_init();
+	if(use_external_music) music_init();
 }
