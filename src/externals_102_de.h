@@ -20,7 +20,7 @@
  * externals_102_de.h - memory addresses for the german 1.02 version of FF7
  */
 
-common_externals.directsound =        (void *)0xDC2680;
+common_externals.directsound =        (IDirectSound*)0xDC2680;
 common_externals.debug_print =                0x664E00;
 common_externals.debug_print2 =               0x414EE0;
 common_externals.create_tex_header =  (void *)0x688C16;

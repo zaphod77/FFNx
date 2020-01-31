@@ -20,7 +20,7 @@
  * externals_102_fr.h - memory addresses for the french 1.02 version of FF7
  */
 
-common_externals.directsound =        (void *)0xDC36B0;
+common_externals.directsound =        (IDirectSound*)0xDC36B0;
 common_externals.debug_print =                0x664DD0;
 common_externals.debug_print2 =               0x414EF0;
 common_externals.create_tex_header =  (void *)0x688BE6;

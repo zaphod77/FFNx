@@ -20,7 +20,7 @@
  * externals_102_sp.h - memory addresses for the spanish 1.02 version of FF7
  */
 
-common_externals.directsound =        (void *)0xDC4110;
+common_externals.directsound =        (IDirectSound*)0xDC4110;
 common_externals.debug_print =                0x664DD0;
 common_externals.debug_print2 =               0x414EF0;
 common_externals.create_tex_header =  (void *)0x688BE6;
