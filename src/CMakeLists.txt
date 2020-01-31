@@ -29,8 +29,6 @@ target_link_options(FFNx PRIVATE /PDBALTPATH:FFNx.pdb)
 if(_DLL_VERSION)
 	target_compile_options(FFNx PRIVATE /DVERSION="${_DLL_VERSION}")
 endif()
-set_target_properties(FFNx PROPERTIES PREFIX "")
-set_target_properties(FFNx PROPERTIES SUFFIX ".fgd")
 
 install(TARGETS FFNx RUNTIME DESTINATION bin)
 install(FILES $<TARGET_PDB_FILE:FFNx> DESTINATION bin OPTIONAL)
