@@ -53,7 +53,7 @@ test: off
 # Package artifacts
 artifacts:
   - path: .dist\build\x86-RelWithDebInfo\bin
-    name: ${_RELEASE_NAME}_debug
+    name: ${_RELEASE_NAME}
     type: zip
 
 # Create a GitHub release for every tag
@@ -62,7 +62,7 @@ deploy:
   - provider: GitHub
     tag: ${appveyor_repo_tag_name}
     release: ${_RELEASE_NAME}
-    artifact: ${_RELEASE_NAME}_debug,${_RELEASE_NAME}
+    artifact: ${_RELEASE_NAME}
     auth_token:
       secure: SXUyBqg8+wl9fn3xHV2Br0xDH65EyPAnFwJbwcg94wIesv9osQEefC3zxu9iDTUh
     on:
@@ -71,7 +71,7 @@ deploy:
   - provider: GitHub
     tag: ${appveyor_repo_tag_name}
     release: ${_RELEASE_NAME} v${appveyor_build_version}
-    artifact: ${_RELEASE_NAME}_debug,${_RELEASE_NAME}
+    artifact: ${_RELEASE_NAME}
     prerelease: true
     force_update: true
     auth_token:
