@@ -1872,7 +1872,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 
 	open_applog("app.log");
 
-	info("FF7/FF8 OpenGL driver version " VERSION PRERELEASE_WARNING "\n");
+	info("FFNx driver version " VERSION PRERELEASE_WARNING "\n");
 
 	version = get_version();
 
