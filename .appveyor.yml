@@ -24,12 +24,23 @@ environment:
   PYTHON: "C:\\Python38-x64"
   PYTHON_VERSION: "3.8.x"
   PYTHON_ARCH: "64"
+  # Vulkan
+  VULKAN: "C:\\VulkanSDK"
+  VULKAN_VERSION: 1.1.130.0
+
+cache:
+  - VulkanSDK-${VULKAN_VERSION}.exe
+
+install:
+  - if not exist VulkanSDK-%VULKAN_VERSION%.exe curl -L --silent --show-error --output VulkanSDK-%VULKAN_VERSION%.exe https://vulkan.lunarg.com/sdk/download/%VULKAN_VERSION%/windows/VulkanSDK-%VULKAN_VERSION%-Installer.exe?Human=true
+  - VulkanSDK-%VULKAN_VERSION%.exe /S
 
 # Prepare Cpp environment
 before_build:
   - cmd: |
       call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars32.bat"
       set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
+      set VULKAN_SDK=%VULKAN%\\%VULKAN_VERSION%
   - ps: |
       if ($env:APPVEYOR_REPO_TAG -eq "true" -and $env:APPVEYOR_REPO_TAG_NAME) {
         $env:APPVEYOR_BUILD_VERSION = $env:APPVEYOR_BUILD_VERSION.Substring(0,$env:APPVEYOR_BUILD_VERSION.LastIndexOf('.')) + ".0"

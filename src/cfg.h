@@ -94,6 +94,7 @@ extern char *load_library;
 extern cfg_bool_t opengl_debug;
 extern cfg_bool_t movie_sync_debug;
 extern cfg_bool_t force_cache_purge;
+extern char *renderer_backend;
 
 void read_cfg();
 

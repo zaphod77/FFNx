@@ -6,7 +6,6 @@
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include <windows.h>
-#include <gl/glew.h>
 #include <math.h>
 #include <sys/timeb.h>
 #include <dsound.h>

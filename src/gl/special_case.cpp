@@ -41,7 +41,7 @@ extern "C" {
 // some way and should not be rendered normally
 // it is generally not safe to modify source data directly, a copy should be
 // made and rendered separately
-uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
+uint gl_special_case(uint primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
 {
 	uint mode = getmode_cached()->driver_mode;
 	VOBJ(texture_set, texture_set, current_state.texture_set);
@@ -50,7 +50,11 @@ uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 	if(fancy_transparency && current_state.texture_set && current_state.blend_mode == BLEND_NONE)
 	{
 		// restore original blend mode for non-modpath textures
-		if(!VREF(texture_set, ogl.external)) glBlendFunc(GL_ONE, GL_ZERO);
+		if (!VREF(texture_set, ogl.external))
+		{
+			// TODO: OPENGL
+			//glBlendFunc(GL_ONE, GL_ZERO);
+		}
 	}
 
 	// modpath textures rendered in 3D should always be filtered
@@ -73,7 +77,9 @@ uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 	if(ff8)
 	{
 		// fix cerberus line effect
-		if(mode == MODE_SWIRL && primitivetype == GL_LINES && vertices[0].color.color == 0 && vertices[1].color.color == 0xFFFF0000 && vertexcount <= 64)
+		// TODO: OPENGL
+		//if(mode == MODE_SWIRL && primitivetype == GL_LINES && vertices[0].color.color == 0 && vertices[1].color.color == 0xFFFF0000 && vertexcount <= 64)
+		if(true)
 		{
 			uint i, j;
 
@@ -177,7 +183,8 @@ uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 		}
 
 		// fix FF8 battle swirl fade effect
-		if(mode == MODE_SWIRL && primitivetype == GL_LINES && vertexcount == 896)
+		// TODO: OPENGL
+		if(true) //if(mode == MODE_SWIRL && primitivetype == GL_LINES && vertexcount == 896)
 		{
 			uint i;
 			uint color1 = vertices[0].color.color;

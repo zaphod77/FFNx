@@ -20,8 +20,6 @@
  * ff7/graphics.c - replacement routines for FF7's rendering system
  */
 
-#include <gl/glew.h>
-
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -71,7 +69,8 @@ uint ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hu
 
 	ip = (indexed_primitive*)driver_calloc(sizeof(*ip), 1);
 
-	ip->primitivetype = GL_TRIANGLES;
+	// TODO: OPENGL
+	//ip->primitivetype = GL_TRIANGLES;
 	ip->vertex_size = sizeof(struct nvertex);
 
 	group_data = &polygon_data->groupdata[group_num];
@@ -363,7 +362,8 @@ struct tex_header *sub_673F5C(struct struc_91 *struc91)
 void draw_single_triangle(struct nvertex *vertices)
 {
 	word indices[] = {0, 1, 2};
-	gl_draw_indexed_primitive(GL_TRIANGLES, TLVERTEX, vertices, 3, indices, 3, 0, true, true);
+	// TODO: OPENGL
+	//gl_draw_indexed_primitive(GL_TRIANGLES, TLVERTEX, vertices, 3, indices, 3, 0, true, true);
 }
 
 void sub_6B2720(struct indexed_primitive *ip)

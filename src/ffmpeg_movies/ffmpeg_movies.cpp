@@ -1,3 +1,5 @@
+#include "../gl/llgl.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -18,7 +20,7 @@ inline double round(double x) { return floor(x + 0.5); }
 
 #define LAG (((now - start_time) - (timer_freq / movie_fps) * movie_frame_counter) / (timer_freq / 1000))
 
-GLint texture_units = 1;
+int texture_units = 1;
 
 uint yuv_init_done = false;
 uint yuv_fast_path = false;
@@ -41,8 +43,8 @@ uint use_bgra_texture;
 
 struct video_frame
 {
-	GLuint bgra_texture;
-	GLuint yuv_textures[3];
+	RendererTexture *bgra_texture = nullptr;
+	RendererTexture* yuv_textures[3] = { nullptr };
 };
 
 struct video_frame video_buffer[VIDEO_BUFFER_SIZE];
@@ -107,9 +109,7 @@ void ffmpeg_movie_init()
 	info("FFMpeg movie player plugin loaded\n");
 	info("FFMpeg version 4.2.1, Copyright (c) 2000-2019 Fabrice Bellard, et al.\n");
 
-	glewInit();
-
-	glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &texture_units);
+	texture_units = newRenderer.getSamples();
 
 	if(texture_units < 3) info("No multitexturing, codecs with YUV output will be slow. (texture units: %i)\n", texture_units);
 	else yuv_fast_path = true;
@@ -144,11 +144,14 @@ void ffmpeg_release_movie_objects()
 
 	for(i = 0; i < VIDEO_BUFFER_SIZE; i++)
 	{
-		glDeleteTextures(1, &video_buffer[i].bgra_texture);
+		// TODO: OPENGL
+		newRenderer.deleteTexture(video_buffer[i].bgra_texture);
 		video_buffer[i].bgra_texture = 0;
-		glDeleteTextures(3, video_buffer[i].yuv_textures);
+		for (uint idx = 0; idx < 3; idx++) newRenderer.deleteTexture(video_buffer[i].yuv_textures[idx]);
 		memset(video_buffer[i].yuv_textures, 0, sizeof(video_buffer[i].yuv_textures));
 	}
+
+	newRenderer.isYUV(false);
 }
 
 // prepare a movie for playback
@@ -334,29 +337,24 @@ void buffer_bgra_frame(uint8_t *data, int upload_stride)
 
 	if(upload_stride < 0) return;
 
-	if(video_buffer[vbuffer_write].bgra_texture) glDeleteTextures(1, &video_buffer[vbuffer_write].bgra_texture);
+	if (video_buffer[vbuffer_write].bgra_texture)
+		newRenderer.deleteTexture(video_buffer[vbuffer_write].bgra_texture);
 
-	glGenTextures(1, &video_buffer[vbuffer_write].bgra_texture);
-	glBindTexture(GL_TEXTURE_2D, video_buffer[vbuffer_write].bgra_texture);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, movie_width, movie_height, 0, GL_BGR, GL_UNSIGNED_BYTE, 0);
-
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, upload_width);
-
-	if(codec_ctx->pix_fmt == AV_PIX_FMT_BGRA) glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, movie_width, movie_height, GL_BGRA, GL_UNSIGNED_BYTE, data);
-	else glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, movie_width, movie_height, GL_BGR, GL_UNSIGNED_BYTE, data);
-
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	video_buffer[vbuffer_write].bgra_texture = newRenderer.createTexture(
+		data,
+		movie_width,
+		movie_height,
+		upload_width,
+		RendererTextureType::BGRA
+	);
 
 	vbuffer_write = (vbuffer_write + 1) % VIDEO_BUFFER_SIZE;
 }
 
 void draw_bgra_frame(uint buffer_index)
 {
-	gl_draw_movie_quad_bgra(video_buffer[buffer_index].bgra_texture, movie_width, movie_height);
+	newRenderer.useTexture(video_buffer[buffer_index].bgra_texture);
+	gl_draw_movie_quad(movie_width, movie_height);
 }
 
 void upload_yuv_texture(uint8_t **planes, int *strides, uint num, uint buffer_index)
@@ -365,48 +363,38 @@ void upload_yuv_texture(uint8_t **planes, int *strides, uint num, uint buffer_in
 	uint tex_width = num == 0 ? movie_width : movie_width / 2;
 	uint tex_height = num == 0 ? movie_height : movie_height / 2;
 
-	glActiveTexture(GL_TEXTURE0 + num);
-
-	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[num]);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE8, tex_width, tex_height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
-
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, upload_width);
-
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tex_width, tex_height, GL_LUMINANCE, GL_UNSIGNED_BYTE, planes[num]);
-
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	video_buffer[buffer_index].yuv_textures[num] = newRenderer.createTexture(
+		planes[num],
+		tex_width,
+		tex_height,
+		upload_width,
+		RendererTextureType::YUV
+	);
 }
 
 void buffer_yuv_frame(uint8_t **planes, int *strides)
 {
-	if(video_buffer[vbuffer_write].yuv_textures[0]) glDeleteTextures(3, video_buffer[vbuffer_write].yuv_textures);
-
-	glGenTextures(3, video_buffer[vbuffer_write].yuv_textures);
+	if (video_buffer[vbuffer_write].yuv_textures[0])
+	{
+		for (uint idx = 0; idx < 3; idx++)
+			newRenderer.deleteTexture(video_buffer[vbuffer_write].yuv_textures[idx]);
+	}
 	
-	upload_yuv_texture(planes, strides, 2, vbuffer_write);
-	upload_yuv_texture(planes, strides, 1, vbuffer_write);
 	upload_yuv_texture(planes, strides, 0, vbuffer_write);
+	upload_yuv_texture(planes, strides, 1, vbuffer_write);
+	upload_yuv_texture(planes, strides, 2, vbuffer_write);
 
 	vbuffer_write = (vbuffer_write + 1) % VIDEO_BUFFER_SIZE;
 }
 
 void draw_yuv_frame(uint buffer_index, uint full_range)
 {
-	glActiveTexture(GL_TEXTURE0 + 2);
-	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[2]);
-	glActiveTexture(GL_TEXTURE0 + 1);
-	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[1]);
-	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[0]);
+	for (uint idx = 0; idx < 3; idx++)
+		newRenderer.useTexture(video_buffer[buffer_index].yuv_textures[idx]);
 
-	gl_draw_movie_quad_yuv(video_buffer[buffer_index].yuv_textures, movie_width, movie_height, full_range);
+	newRenderer.isYUV(true);
+	newRenderer.isFullRange(full_range);
+	gl_draw_movie_quad(movie_width, movie_height);
 }
 
 // display the next frame

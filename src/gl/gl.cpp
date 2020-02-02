@@ -21,9 +21,10 @@
  */
 
 #include <windows.h>
-#include <gl/glew.h>
 #include <stdio.h>
 #include <math.h>
+
+#include "llgl.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -47,90 +48,71 @@ struct matrix d3dviewport_matrix = {
 
 struct driver_state current_state;
 
-GLuint indirect_texture;
-GLuint indirect_fbo;
-GLuint depthbuffer;
+uint indirect_texture;
+uint indirect_fbo;
+uint depthbuffer;
 
 uint yuv_shader_loaded = false;
 
-GLint max_texture_size;
+int max_texture_size;
 
 extern uint nodefer;
-
-extern uint main_program;
-extern uint post_program;
-extern uint yuv_program;
-
-extern uint current_program;
 
 // draw a fullscreen quad, respect aspect ratio of source image
 void gl_draw_movie_quad_common(int movie_width, int movie_height)
 {
-	float x1 = 0.0f;
-	float x2 = (float)width;
-	float y1 = 0.0f;
-	float y2 = min((float)width * (float)movie_height / (float)movie_width, (float)height);
+	// 0
+	float x0 = 0.0f;
+	float y0 = 0.0f;
+	float u0 = 0.0f;
+	float v0 = 0.0f;
+	// 1
+	float x1 = x0;
+	float y1 = (float)window_size_y;
 	float u1 = 0.0f;
+	float v1 = 1.0f;
+	// 2
+	float x2 = (float)window_size_x;
+	float y2 = y0;
 	float u2 = 1.0f;
-	float v1 = 0.0f;
-	float v2 = 1.0f;
-	float z = 1.0f;
+	float v2 = 0.0f;
+	// 3
+	float x3 = x2;
+	float y3 = y1;
+	float u3 = 1.0f;
+	float v3 = 1.0f;
+
 	struct nvertex vertices[] = {
-		{x2, y1, z, 1.0f, 0xffffffff, 0, u2, v1},
-		{x2, y2, z, 1.0f, 0xffffffff, 0, u2, v2},
-		{x1, y2, z, 1.0f, 0xffffffff, 0, u1, v2},
-		{x1, y1, z, 1.0f, 0xffffffff, 0, u1, v1},
+		{x0, y0, 0.0, 1.0f, 0x00000000, u0, v0},
+		{x1, y1, 0.0, 1.0f, 0x00000000, u1, v1},
+		{x2, y2, 0.0, 1.0f, 0x00000000, u2, v2},
+		{x3, y3, 0.0, 1.0f, 0x00000000, u3, v3},
 	};
-	word indices[] = {0, 1, 2, 3};
+	word indices[] = {
+		0, 1, 2,
+		1, 3, 2
+	};
 	struct game_obj *game_object = common_externals.get_game_object();
 
 	current_state.texture_filter = true;
 	internal_set_renderstate(V_DEPTHTEST, 0, game_object);
 
-	gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices, 4, indices, 4, 0, true, false);
+	newRenderer.bindVertexBuffer(vertices, 4);
+	newRenderer.bindIndexBuffer(indices, 6);
+
+	newRenderer.isTexture(true);
+
+	newRenderer.draw();
 }
 
-// draw movie frame from BGRA data, called from movie plugin
-void gl_draw_movie_quad_bgra(GLuint movie_texture, int movie_width, int movie_height)
+// draw movie frame
+void gl_draw_movie_quad(int movie_width, int movie_height)
 {
 	struct driver_state saved_state;
 
 	gl_save_state(&saved_state);
-
-	gl_set_texture(movie_texture);
 
 	gl_draw_movie_quad_common(movie_width, movie_height);
-
-	gl_load_state(&saved_state);
-}
-
-// draw movie frame from YUV data, called from movie plugin
-void gl_draw_movie_quad_yuv(GLuint *yuv_textures, int movie_width, int movie_height, uint full_range)
-{
-	struct driver_state saved_state;
-
-	gl_save_state(&saved_state);
-
-	gl_set_texture(yuv_textures[0]);
-
-	if(!yuv_shader_loaded)
-	{
-		yuv_program = gl_create_program(vert_source, yuv_source, "yuv");
-		yuv_shader_loaded = true;
-		if(!yuv_program)
-		{
-			error("failed to load yuv shader\n");
-			return;
-		}
-	}
-
-	if(yuv_program)
-	{
-		gl_use_yuv_program();
-		glUniform1i(glGetUniformLocation(current_program, "full_range"), full_range);
-		gl_draw_movie_quad_common(movie_width, movie_height);
-		gl_use_main_program();
-	}
 
 	gl_load_state(&saved_state);
 }
@@ -160,7 +142,8 @@ void gl_load_state(struct driver_state *src)
 	internal_set_renderstate(V_ALPHATEST, src->alphatest, 0);
 	internal_set_renderstate(V_ALPHAFUNC, src->alphafunc, 0);
 	internal_set_renderstate(V_ALPHAREF, src->alpharef, 0);
-	glShadeModel(src->shademode ? GL_SMOOTH : GL_FLAT);
+	// TODO: OPENGL
+	//glShadeModel(src->shademode ? GL_SMOOTH : GL_FLAT);
 	gl_set_world_matrix(&src->world_matrix);
 	gl_set_d3dprojection_matrix(&src->d3dprojection_matrix);
 }
@@ -169,11 +152,12 @@ void gl_load_state(struct driver_state *src)
 // interesting for real-time lighting, maps to normal rendering routine for now
 void gl_draw_with_lighting(struct indexed_primitive *ip, uint clip, struct matrix *model_matrix)
 {
-	gl_draw_indexed_primitive(ip->primitivetype, ip->vertextype, ip->vertices, ip->vertexcount, ip->indices, ip->indexcount, 0, clip, true);
+	// TODO: OPENGL
+	//gl_draw_indexed_primitive(ip->primitivetype, ip->vertextype, ip->vertices, ip->vertexcount, ip->indices, ip->indexcount, 0, clip, true);
 }
 
 // main rendering routine, draws a set of primitives according to the current render state
-void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
+void gl_draw_indexed_primitive(uint primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
 {
 	FILE *log;
 	uint i;
@@ -185,9 +169,10 @@ void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nve
 	// should never happen, broken 3rd-party models cause this
 	if(!count) return;
 
+	// TODO: OPENGL
 	// scissor test is used to emulate D3D viewports
-	if(clip) glEnable(GL_SCISSOR_TEST);
-	else glDisable(GL_SCISSOR_TEST);
+	//if(clip) glEnable(GL_SCISSOR_TEST);
+	//else glDisable(GL_SCISSOR_TEST);
 
 	if(vertextype > TLVERTEX)
 	{
@@ -209,11 +194,14 @@ void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nve
 	{
 		VOBJ(texture_set, texture_set, current_state.texture_set);
 
-		if(VREF(texture_set, ogl.external)) glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		// TODO: OPENGL
+		//if(VREF(texture_set, ogl.external)) glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	}
 
+	// TODO: OPENGL
 	// OpenGL treats texture filtering as a per-texture parameter, we need it
 	// to be consistent with our global render state
+	/*
 	if(current_state.texture_filter)
 	{
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -224,6 +212,7 @@ void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nve
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	}
+	*/
 
 	if(vertex_log)
 	{
@@ -239,28 +228,29 @@ void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nve
 		fclose(log);
 	}
 
+	// TODO: OPENGL
 	// upload shader uniforms
-	if(current_program != 0)
-	{
-		if(vertextype != TLVERTEX)
-		{
-			glUniformMatrix4fv(glGetUniformLocation(current_program, "d3dprojection_matrix"), 1, false, &current_state.d3dprojection_matrix.m[0][0]);
-			glUniformMatrix4fv(glGetUniformLocation(current_program, "d3dviewport_matrix"), 1, false, &d3dviewport_matrix.m[0][0]);
-		}
+	//if(current_program != 0)
+	//{
+	//	if(vertextype != TLVERTEX)
+	//	{
+	//		glUniformMatrix4fv(glGetUniformLocation(current_program, "d3dprojection_matrix"), 1, false, &current_state.d3dprojection_matrix.m[0][0]);
+	//		glUniformMatrix4fv(glGetUniformLocation(current_program, "d3dviewport_matrix"), 1, false, &d3dviewport_matrix.m[0][0]);
+	//	}
 
-		glUniform1i(glGetUniformLocation(current_program, "vertextype"), vertextype);
-		glUniform1i(glGetUniformLocation(current_program, "fb_texture"), current_state.fb_texture);
+	//	glUniform1i(glGetUniformLocation(current_program, "vertextype"), vertextype);
+	//	glUniform1i(glGetUniformLocation(current_program, "fb_texture"), current_state.fb_texture);
 
-		glUniform1i(glGetUniformLocation(current_program, "modulate_alpha"), true);
+	//	glUniform1i(glGetUniformLocation(current_program, "modulate_alpha"), true);
 
-		if(ff8 && current_state.fb_texture) glUniform1i(glGetUniformLocation(current_program, "modulate_alpha"), false);
-	}
+	//	if(ff8 && current_state.fb_texture) glUniform1i(glGetUniformLocation(current_program, "modulate_alpha"), false);
+	//}
 
-	// upload vertex data
-	glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(*vertices), &vertices[0].color.color);
-	glVertexPointer(vertextype == TLVERTEX ? 4 : 3, GL_FLOAT, sizeof(*vertices), &vertices[0]._);
-	glTexCoordPointer(2, GL_FLOAT, sizeof(*vertices), &vertices[0].u);
-	glDrawElements(primitivetype, count, GL_UNSIGNED_SHORT, indices);
+	//// upload vertex data
+	//glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(*vertices), &vertices[0].color.color);
+	//glVertexPointer(vertextype == TLVERTEX ? 4 : 3, GL_FLOAT, sizeof(*vertices), &vertices[0]._);
+	//glTexCoordPointer(2, GL_FLOAT, sizeof(*vertices), &vertices[0].u);
+	//glDrawElements(primitivetype, count, GL_UNSIGNED_SHORT, indices);
 
 #ifdef SINGLE_STEP
 	glFinish();
@@ -273,8 +263,9 @@ void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nve
 
 void gl_set_world_matrix(struct matrix *matrix)
 {
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(&matrix->m[0][0]);
+	// TODO: OPENGL
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadMatrixf(&matrix->m[0][0]);
 	memcpy(&current_state.world_matrix, matrix, sizeof(struct matrix));
 }
 
@@ -288,12 +279,14 @@ void gl_set_blend_func(uint blend_mode)
 {
 	if(trace_all) trace("set blend mode %i\n", blend_mode);
 
-	glUniform1i(glGetUniformLocation(current_program, "blend_mode"), blend_mode);
+	// TODO: OPENGL
+	//glUniform1i(glGetUniformLocation(current_program, "blend_mode"), blend_mode);
 
 	current_state.blend_mode = blend_mode;
 
-	glBlendEquation(GL_FUNC_ADD);
+	//glBlendEquation(GL_FUNC_ADD);
 
+	/*
 	switch(blend_mode)
 	{
 		case BLEND_AVG:
@@ -317,6 +310,7 @@ void gl_set_blend_func(uint blend_mode)
 		default:
 			unexpected("Unknown blend mode %i\n", blend_mode);
 	}
+	*/
 }
 
 // draw text on screen using the game font
@@ -452,7 +446,8 @@ uint gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 		VRASS(font_a, palette_index, color);
 		common_palette_changed(0, 0, 0, VREF(font_a, palette), VPTRCAST(texture_set, font_a));
 
-		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_a, vert_a, indices_a, vert_a, VPTRCAST(graphics_object, object_a), false, true);
+		// TODO: OPENGL
+		//gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_a, vert_a, indices_a, vert_a, VPTRCAST(graphics_object, object_a), false, true);
 	}
 
 	if(vert_b > 0)
@@ -460,7 +455,8 @@ uint gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 		VRASS(font_b, palette_index, color);
 		common_palette_changed(0, 0, 0, VREF(font_b, palette), VPTRCAST(texture_set, font_b));
 
-		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_b, vert_b, indices_b, vert_b, VPTRCAST(graphics_object, object_b), false, true);
+		// TODO: OPENGL
+		//gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_b, vert_b, indices_b, vert_b, VPTRCAST(graphics_object, object_b), false, true);
 	}
 
 	nodefer = false;
@@ -491,6 +487,8 @@ void gl_prepare_flip()
 	};
 	word indices[] = {0, 1, 2, 3};
 
+	// TODO: OPENGL
+	/*
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 
 	glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT | GL_VIEWPORT_BIT | GL_COLOR_BUFFER_BIT);
@@ -515,55 +513,60 @@ void gl_prepare_flip()
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
+	*/
 
 	current_state.texture_filter = true;
 	current_state.fb_texture = false;
 
-	glViewport(x_offset, y_offset, output_size_x, output_size_y);
+	//glViewport(x_offset, y_offset, output_size_x, output_size_y);
 
 	nodefer = true;
 
-	gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices, 4, indices, 4, 0, false, false);
+	//gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices, 4, indices, 4, 0, false, false);
 
 	nodefer = false;
 
+	/*
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
+	*/
 
-	gl_use_main_program();
+	//gl_use_main_program();
 
-	glPopAttrib();
+	//glPopAttrib();
 }
 
 // prepare for game rendering
 void gl_prepare_render()
 {
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, indirect_fbo);
+	// TODO: OPENGL
+	//glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, indirect_fbo);
 
-	glViewport(0, 0, internal_size_x, internal_size_y);
+	//glViewport(0, 0, internal_size_x, internal_size_y);
 }
 
 uint gl_load_shaders()
 {
-	GLint max_interpolators;
-	GLint max_vert_uniforms;
-	GLint max_frag_uniforms;
+	int max_interpolators;
+	int max_vert_uniforms;
+	int max_frag_uniforms;
 
-	glGetIntegerv(GL_MAX_VARYING_FLOATS, &max_interpolators);
-	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &max_vert_uniforms);
-	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &max_frag_uniforms);
+	// TODO: OPENGL
+	//glGetIntegerv(GL_MAX_VARYING_FLOATS, &max_interpolators);
+	//glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &max_vert_uniforms);
+	//glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &max_frag_uniforms);
 
 	info("Shader limits: varying %i, vert uniform %i, frag uniform %i\n", max_interpolators, max_vert_uniforms, max_frag_uniforms);
 
-	main_program = gl_create_program(vert_source, frag_source, "main");
+	//main_program = gl_create_program(vert_source, frag_source, "main");
 
-	if(!main_program) return false;
+	//if(!main_program) return false;
 
-	gl_use_main_program();
+	//gl_use_main_program();
 
-	glUniform1i(glGetUniformLocation(current_program, "vertexcolor"), 1);
+	//glUniform1i(glGetUniformLocation(current_program, "vertexcolor"), 1);
 
 	return true;
 }
@@ -572,12 +575,13 @@ uint gl_init_indirect()
 {
 	uint fbo_width = internal_size_x, fbo_height = internal_size_y;
 
-	if(!GLEW_EXT_framebuffer_object)
+	// TODO: OPENGL
+	if(!newRenderer.getCaps().features.hasIndirectDrawing)
 	{
 		error("No FBO support, cannot do indirect rendering\n");
 		return false;
 	}
-
+	/*
 	indirect_texture = gl_create_empty_texture();
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -604,13 +608,9 @@ uint gl_init_indirect()
 
 		return false;
 	}
+	*/
 
 	return true;
-}
-
-uint gl_init_postprocessing()
-{
-	return (post_program = gl_create_program(0, post_source, "postprocessing")) != 0;
 }
 
 #if defined(__cplusplus)

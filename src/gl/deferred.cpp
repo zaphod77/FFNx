@@ -37,7 +37,7 @@ struct deferred_draw *deferred_draws;
 uint num_deferred;
 
 // re-order and save a draw call for later processing
-uint gl_defer_draw(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, uint clip, uint mipmap)
+uint gl_defer_draw(uint primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, uint clip, uint mipmap)
 {
 	uint tri;
 	uint mode = getmode_cached()->driver_mode;
@@ -109,11 +109,14 @@ uint gl_defer_draw(GLenum primitivetype, uint vertextype, struct nvertex *vertic
 		}
 	}
 
+	// TODO: OPENGL
 	// quads are used for some GUI elements, we do not need to re-order these
+	/*
 	if (primitivetype != GL_TRIANGLES) {
 		if (trace_all) trace("gl_defer_draw: primitivetype != GL_TRIANGLES\n");
 		return false;
 	}
+	*/
 
 	if(num_deferred + count / 3 > DEFERRED_MAX)
 	{

@@ -154,7 +154,10 @@ void debug_printf(const char *prefix, uint popup, uint color, const char *fmt, .
 
 	va_end(args);
 
-	_snprintf(tmp_str2, sizeof(tmp_str2), "%s: %s", prefix, tmp_str);
+	if ( prefix == nullptr)
+		_snprintf(tmp_str2, sizeof(tmp_str2), "%s", tmp_str);
+	else
+		_snprintf(tmp_str2, sizeof(tmp_str2), "%s: %s", prefix, tmp_str);
 	debug_print(tmp_str2);
 
 	if(popup)

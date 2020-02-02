@@ -20,8 +20,6 @@
  * gl/texture.c - support functions for loading/using OpenGL textures
  */
 
-#include <gl/glew.h>
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -40,29 +38,34 @@ void gl_check_texture_dimensions(uint width, uint height, char *source)
 }
 
 // create a blank OpenGL texture
-GLuint gl_create_empty_texture()
+uint gl_create_empty_texture()
 {
-	GLuint texture;
+	uint texture;
 
+	// TODO: OPENGL
+	/*
 	glGenTextures(1, &texture);
 
 	glBindTexture(GL_TEXTURE_2D, texture);
+	*/
 
 	return texture;
 }
 
 // create a simple texture from pixel data, if the size parameter is used it
 // will be treated as a compressed texture
-GLuint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
+uint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
 {
-	GLuint texture = gl_create_empty_texture();
+	uint texture = gl_create_empty_texture();
 
+	/*
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
 	if(size) glCompressedTexImage2DARB(GL_TEXTURE_2D, 0, format, width, height, 0, size, data);
 	else glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
 	if(generate_mipmaps) glGenerateMipmapEXT(GL_TEXTURE_2D);
+	*/
 
 	return texture;
 }
@@ -82,7 +85,8 @@ uint commited;
 
 void gl_init_pbo_ring()
 {
-	glGenBuffers(PBO_RING_SIZE, pbo_ring);
+	// TODO: OPENGL
+	//glGenBuffers(PBO_RING_SIZE, pbo_ring);
 	pbo_index = 0;
 	commited = true;
 }
@@ -95,9 +99,12 @@ void *gl_get_pixel_buffer(uint size)
 
 	if(!commited) error("PBO not commited\n");
 
+	// TODO: OPENGL
+	/*
 	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo_ring[pbo_index]);
 	glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_STREAM_DRAW);
 	ret = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
+	*/
 
 	commited = false;
 
@@ -106,7 +113,7 @@ void *gl_get_pixel_buffer(uint size)
 	return ret;
 }
 
-GLuint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
+uint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
 {
 	uint ret;
 
@@ -119,28 +126,33 @@ GLuint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint 
 
 	if(commited) error("PBO already commited\n");
 
-	glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+	// TODO: OPENGL
+	//glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
 
 	ret = gl_create_texture(0, width, height, format, internalformat, size, generate_mipmaps);
 
-	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	//glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
 	commited = true;
 
 	return ret;
 }
 
-GLuint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, uint generate_mipmaps)
+uint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, uint generate_mipmaps)
 {
-	return gl_commit_pixel_buffer_generic(data, width, height, format, GL_RGBA8, 0, generate_mipmaps);
+	// TODO: OPENGL
+	//return gl_commit_pixel_buffer_generic(data, width, height, format, GL_RGBA8, 0, generate_mipmaps);
+	return 0;
 }
 
-GLuint gl_compress_pixel_buffer(void *data, uint width, uint height, uint format)
+uint gl_compress_pixel_buffer(void *data, uint width, uint height, uint format)
 {
-	return gl_commit_pixel_buffer_generic(data, width, height, format, GL_COMPRESSED_RGBA, 0, true);
+	// TODO: OPENGL
+	//return gl_commit_pixel_buffer_generic(data, width, height, format, GL_COMPRESSED_RGBA, 0, true);
+	return 0;
 }
 
-GLuint gl_commit_compressed_buffer(void *data, uint width, uint height, uint format, uint size)
+uint gl_commit_compressed_buffer(void *data, uint width, uint height, uint format, uint size)
 {
 	return gl_commit_pixel_buffer_generic(data, width, height, format, 0, size, true);
 }
@@ -154,7 +166,8 @@ void gl_replace_texture(struct texture_set *texture_set, uint palette_index, uin
 	if(VREF(texture_set, texturehandle[palette_index]) != 0)
 	{
 		if(VREF(texture_set, ogl.external)) glitch("oops, may have messed up an external texture\n");
-		glDeleteTextures(1, VREFP(texture_set, texturehandle[palette_index]));
+		// TODO: OPENGL
+		//glDeleteTextures(1, VREFP(texture_set, texturehandle[palette_index]));
 	}
 
 	VRASS(texture_set, texturehandle[palette_index], new_texture);
@@ -163,7 +176,7 @@ void gl_replace_texture(struct texture_set *texture_set, uint palette_index, uin
 // upload texture for a texture set from raw pixel data
 void gl_upload_texture(struct texture_set *texture_set, uint palette_index, void *image_data, uint format)
 {
-	GLuint texture;
+	uint texture;
 	uint w, h;
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
@@ -209,10 +222,12 @@ void gl_bind_texture_set(struct texture_set *_texture_set)
 
 // prepare an OpenGL texture for rendering, passing zero to this function will
 // disable texturing entirely
-void gl_set_texture(GLuint texture)
+void gl_set_texture(uint texture)
 {
 	if(trace_all) trace("gl_set_texture: set texture %i\n", texture);
 
+	// TODO: OPENGL
+	/*
 	if(texture)
 	{
 		glBindTexture(GL_TEXTURE_2D, texture);
@@ -222,6 +237,7 @@ void gl_set_texture(GLuint texture)
 	{
 		glUniform1i(glGetUniformLocation(current_program, "texture"), 0);
 	}
+	*/
 
 	current_state.texture_handle = texture;
 	current_state.texture_set = 0;

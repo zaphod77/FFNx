@@ -23,9 +23,9 @@
 #include <windows.h>
 #include <psapi.h>
 #include <stdio.h>
-#include <gl/glew.h>
-#include <gl/wglew.h>
 #include <sys/timeb.h>
+
+#include "gl/llgl.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -277,6 +277,8 @@ uint common_init(struct game_obj *game_object)
 {
 	if(trace_all) trace("dll_gfx: init\n");
 
+	// TODO: OPENGL
+	/*
 	glEnableClientState(GL_COLOR_ARRAY);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -297,6 +299,7 @@ uint common_init(struct game_obj *game_object)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0.0, (double)width, (double)height, 0.0, 1.0, -1.0);
+	*/
 
 	gl_set_blend_func(BLEND_NONE);
 
@@ -304,8 +307,11 @@ uint common_init(struct game_obj *game_object)
 	common_externals.make_pixelformat(32, 0xFF0000, 0xFF00, 0xFF, 0xFF000000, texture_format);
 	common_externals.add_texture_format(texture_format, game_object);
 
+	// TODO: OPENGL
+	/*
 	if(indirect_rendering) gl_prepare_render();
 	else glViewport(x_offset, y_offset, output_size_x, output_size_y);
+	*/
 
 	return true;
 }
@@ -468,13 +474,7 @@ void common_flip(struct game_obj *game_object)
 
 	if(indirect_rendering) gl_prepare_flip();
 
-#ifndef SINGLE_STEP
-	if(!SwapBuffers(hDC))
-	{
-		error("SwapBuffers failed: ");
-		windows_error(0);
-	}
-#endif
+	newRenderer.reset();
 
 	// new framelimiter, not based on vsync
 	if(!ff8 && use_new_timer)
@@ -507,9 +507,6 @@ void common_flip(struct game_obj *game_object)
 
 	frame_counter++;
 
-	// check for gl errors once per frame
-	gl_error();
-
 	// FF8 does not clear the screen properly in the card game module
 	if(ff8 && mode->driver_mode == MODE_CARDGAME) common_clear_all(0);
 }
@@ -519,10 +516,15 @@ void common_flip(struct game_obj *game_object)
 void common_clear(uint clear_color, uint clear_depth, uint unknown, struct game_obj *game_object)
 {
 	uint mode = getmode()->driver_mode;
-	GLbitfield mask = 0;
+	//GLbitfield mask = 0;
 
 	if(trace_all) trace("dll_gfx: clear %i %i %i\n", clear_color, clear_depth, unknown);
 
+	if (clear_color || mode == MODE_MENU) newRenderer.setClearFlags(LLGL::ClearFlags::Color);
+	if (clear_depth) newRenderer.setClearFlags(LLGL::ClearFlags::Depth);
+
+	// TODO: OPENGL
+	/*
 	glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_SCISSOR_BIT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
@@ -538,6 +540,7 @@ void common_clear(uint clear_color, uint clear_depth, uint unknown, struct game_
 #endif
 
 	glPopAttrib();
+	*/
 }
 
 // called by the game to clear the entire back buffer
@@ -561,8 +564,11 @@ void common_setviewport(uint _x, uint _y, uint _w, uint _h, struct game_obj *gam
 	current_state.viewport[2] = _w;
 	current_state.viewport[3] = _h;
 
+	// TODO: OPENGL
+	/*
 	if(indirect_rendering) glScissor(INT_COORD_X(_x), internal_size_y - INT_COORD_Y(_y + _h), INT_COORD_X(_w), INT_COORD_Y(_h));
 	else glScissor(INT_COORD_X(_x) + x_offset, window_size_y - INT_COORD_Y(_y + _h), INT_COORD_X(_w), INT_COORD_Y(_h));
+	*/
 
 	// emulate the transformation applied by an equivalent Direct3D viewport
 	d3dviewport_matrix._11 = (float)_w / (float)width;
@@ -579,7 +585,12 @@ void common_setbg(struct bgra_color *color, struct game_obj *game_object)
 {
 	if(trace_all) trace("dll_gfx: setbg\n");
 
-	glClearColor(color->r, color->g, color->b, 0.0f);
+	newRenderer.setBackgroundColor(
+		color->r,
+		color->g,
+		color->b,
+		0.0f
+	);
 }
 
 // called by the game to initialize a polygon_set structure
@@ -637,7 +648,10 @@ void common_unload_texture(struct texture_set *texture_set)
 	if(!VREF(texture_set, ogl.gl_set)) return;
 
 	// do not delete modpath textures directly
-	if(!VREF(texture_set, ogl.external)) glDeleteTextures(VREF(texture_set, ogl.gl_set->textures), VREF(texture_set, texturehandle));
+	if (!VREF(texture_set, ogl.external)) {
+		// TODO: OPENGL
+		//glDeleteTextures(VREF(texture_set, ogl.gl_set->textures), VREF(texture_set, texturehandle));
+	}
 
 	// remove modpath cache reference
 	ext_cache_release(VPTRCAST(texture_set, texture_set));
@@ -672,25 +686,28 @@ uint load_framebuffer_texture(struct texture_set *texture_set, struct tex_header
 {
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, tex_header);
-	GLuint texture;
+	uint texture;
 
 	if(VREF(tex_header, version) != FB_TEX_VERSION) return false;
 
 	if(trace_all) trace("load_framebuffer_texture: 0x%x\n", VPTR(texture_set));
 
-	glPushAttrib(GL_TEXTURE_BIT);
+	// TODO: OPENGL
+	//glPushAttrib(GL_TEXTURE_BIT);
 
 	texture = gl_create_empty_texture();
 
+	/*
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 	if(!indirect_rendering) glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, VREF(tex_header, fb_tex.x) + x_offset, VREF(tex_header, fb_tex.y) + y_offset, VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h), 0);
 	else glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, VREF(tex_header, fb_tex.x), VREF(tex_header, fb_tex.y), VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h), 0);
+	*/
 
 	VRASS(texture_set, texturehandle[0], texture);
 
-	glPopAttrib();
+	//glPopAttrib();
 
 	return true;
 }
@@ -871,7 +888,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 		// allocate some more textures just in case, there could be more palettes we don't know about yet
 		// FF8 likes to change its mind about just how many palettes a texture has
 		VRASS(texture_set, ogl.gl_set->textures, VREF(tex_header, palettes) > 0 ? VREF(tex_header, palettes) * 2 : 1);
-		VRASS(texture_set, texturehandle, (uint*)driver_calloc(VREF(texture_set, ogl.gl_set->textures), sizeof(GLuint)));
+		VRASS(texture_set, texturehandle, (uint*)driver_calloc(VREF(texture_set, ogl.gl_set->textures), sizeof(uint)));
 
 		if(ff8 && VREF(tex_header, version) != FB_TEX_VERSION)
 		{
@@ -936,8 +953,9 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 
 			if(memcmp(VREF(tex_header, old_palette_data), tex_format->palette_data, 4 * tex_format->palette_size))
 			{
-				glDeleteTextures(VREF(texture_set, ogl.gl_set->textures), VREF(texture_set, texturehandle));
-				memset(VREF(texture_set, texturehandle), 0, VREF(texture_set, ogl.gl_set->textures) * sizeof(GLuint));
+				// TODO: OPENGL
+				//glDeleteTextures(VREF(texture_set, ogl.gl_set->textures), VREF(texture_set, texturehandle));
+				memset(VREF(texture_set, texturehandle), 0, VREF(texture_set, ogl.gl_set->textures) * sizeof(uint));
 
 				memcpy(VREF(tex_header, old_palette_data), tex_format->palette_data, 4 * tex_format->palette_size);
 			}
@@ -1000,7 +1018,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			// commit PBO and populate texture set
-			gl_upload_texture(VPTRCAST(texture_set, texture_set), VREF(tex_header, palette_index), image_data, GL_BGRA);
+			// TODO: OPENGL
+			//gl_upload_texture(VPTRCAST(texture_set, texture_set), VREF(tex_header, palette_index), image_data, GL_BGRA);
 		}
 		else return VPTRCAST(texture_set, texture_set);
 	}
@@ -1068,7 +1087,8 @@ uint common_write_palette(uint source_offset, uint size, void *source, uint dest
 
 			if(!VREF(texture_set, ogl.external))
 			{
-				glDeleteTextures(1, VREFP(texture_set, texturehandle[palette_index]));
+				// TODO: OPENGL
+				//glDeleteTextures(1, VREFP(texture_set, texturehandle[palette_index]));
 				VRASS(texture_set, texturehandle[palette_index], 0);
 			}
 
@@ -1100,8 +1120,9 @@ uint common_write_palette(uint source_offset, uint size, void *source, uint dest
 			// if there's anything left at this point, reload the affected textures
 			if(palettes && !VREF(texture_set, ogl.external))
 			{
-				glDeleteTextures(palettes, VREFP(texture_set, texturehandle[palette_index]));
-				memset(VREFP(texture_set, texturehandle[palette_index]), 0, palettes * sizeof(GLuint));
+				// TODO: OPENGL
+				//glDeleteTextures(palettes, VREFP(texture_set, texturehandle[palette_index]));
+				memset(VREFP(texture_set, texturehandle[palette_index]), 0, palettes * sizeof(uint));
 			}
 
 			stats.texture_reloads++;
@@ -1168,8 +1189,8 @@ void internal_set_renderstate(uint state, uint option, struct game_obj *game_obj
 	{
 		// wireframe rendering, not used?
 		case V_WIREFRAME:
-			if(option) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			if (option) newRenderer.setWireframeMode(true);
+			else newRenderer.setWireframeMode(false);
 			current_state.wireframe = option;
 			break;
 
@@ -1196,48 +1217,36 @@ void internal_set_renderstate(uint state, uint option, struct game_obj *game_obj
 
 		// alpha test is used in many places in FF8 instead of color keying
 		case V_ALPHATEST:
-			if(option) glEnable(GL_ALPHA_TEST);
-			else glDisable(GL_ALPHA_TEST);
+			if (option) newRenderer.doAlphaTest(true);
+			else newRenderer.doAlphaTest(false);
 			current_state.alphatest = option;
 			break;
 		
 		// cull face, does this ever change?
 		case V_CULLFACE:
-			if(option)
-			{
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_FRONT);
-			}
-			else
-			{
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_BACK);
-			}
+			if (option) newRenderer.setCullMode(LLGL::CullMode::Front);
+			else newRenderer.setCullMode(LLGL::CullMode::Back);
 			current_state.cullface = option;
 			break;
 
 		// turn off culling completely, once again unsure if its ever used
 		case V_NOCULL:
-			if(option) glDisable(GL_CULL_FACE);
-			else
-			{
-				glEnable(GL_CULL_FACE);
-				glCullFace(GL_BACK);
-			}
+			if (option) newRenderer.setCullMode(LLGL::CullMode::Disabled);
+			else newRenderer.setCullMode(LLGL::CullMode::Back);
 			current_state.nocull = option;
 			break;
 
 		// turn depth testing on/off
 		case V_DEPTHTEST:
-			if(option) glEnable(GL_DEPTH_TEST);
-			else glDisable(GL_DEPTH_TEST);
+			if (option) newRenderer.setDepthTest(true);
+			else newRenderer.setDepthTest(false);
 			current_state.depthtest = option;
 			break;
 
 		// depth mask, enable/disable writing to the Z-buffer
 		case V_DEPTHMASK:
-			if(option) glDepthMask(GL_TRUE);
-			else glDepthMask(GL_FALSE);
+			if (option) newRenderer.setDepthMask(true);
+			else newRenderer.setDepthMask(false);
 			current_state.depthmask = option;
 			break;
 
@@ -1254,15 +1263,15 @@ void internal_set_renderstate(uint state, uint option, struct game_obj *game_obj
 
 			switch(current_state.alphafunc)
 			{
-				case 0: glAlphaFunc(GL_NEVER, current_state.alpharef / 255.0f); break;
-				case 1: glAlphaFunc(GL_ALWAYS, current_state.alpharef / 255.0f); break;
-				case 2: glAlphaFunc(GL_LESS, current_state.alpharef / 255.0f); break;
-				case 3: glAlphaFunc(GL_LEQUAL, current_state.alpharef / 255.0f); break;
-				case 4: glAlphaFunc(GL_EQUAL, current_state.alpharef / 255.0f); break;
-				case 5: glAlphaFunc(GL_GEQUAL, current_state.alpharef / 255.0f); break;
-				case 6: glAlphaFunc(GL_GREATER, current_state.alpharef / 255.0f); break;
-				case 7: glAlphaFunc(GL_NOTEQUAL, current_state.alpharef / 255.0f); break;
-				default: glAlphaFunc(GL_LEQUAL, current_state.alpharef / 255.0f); break;
+			case 0: newRenderer.setAlphaRef(RendererAlphaFunc::NEVER, current_state.alpharef / 255.0f); break;
+			case 1: newRenderer.setAlphaRef(RendererAlphaFunc::ALWAYS, current_state.alpharef / 255.0f); break;
+			case 2: newRenderer.setAlphaRef(RendererAlphaFunc::LESS, current_state.alpharef / 255.0f); break;
+			case 3: newRenderer.setAlphaRef(RendererAlphaFunc::LEQUAL, current_state.alpharef / 255.0f); break;
+			case 4: newRenderer.setAlphaRef(RendererAlphaFunc::EQUAL, current_state.alpharef / 255.0f); break;
+			case 5: newRenderer.setAlphaRef(RendererAlphaFunc::GEQUAL, current_state.alpharef / 255.0f); break;
+			case 6: newRenderer.setAlphaRef(RendererAlphaFunc::GREATER, current_state.alpharef / 255.0f); break;
+			case 7: newRenderer.setAlphaRef(RendererAlphaFunc::NOTEQUAL, current_state.alpharef / 255.0f); break;
+			default: newRenderer.setAlphaRef(RendererAlphaFunc::LEQUAL, current_state.alpharef / 255.0f); break;
 			}
 			break;
 		default:
@@ -1329,12 +1338,13 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 		{
 			if(hundred_data->shademode == 1)
 			{
-				glShadeModel(GL_FLAT);
+				// TODO: OPENGL
+				//glShadeModel(GL_FLAT);
 				current_state.shademode = false;
 			}
 			else if(hundred_data->shademode == 2)
 			{
-				glShadeModel(GL_SMOOTH);
+				//glShadeModel(GL_SMOOTH);
 				current_state.shademode = true;
 			}
 			else glitch("missing shade mode %i\n", hundred_data->shademode);
@@ -1342,7 +1352,7 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 
 		else
 		{
-			glShadeModel(GL_FLAT);
+			//glShadeModel(GL_FLAT);
 			current_state.shademode = false;
 		}
 	}
@@ -1488,7 +1498,8 @@ void generic_draw(struct polygon_set *polygon_set, struct indexed_vertices *iv, 
 	VOBJ(polygon_set, polygon_set, polygon_set);
 	VOBJ(indexed_vertices, iv, iv);
 
-	gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
+	// TODO: OPENGL
+	//gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 }
 
 // helper function used to draw a set of triangles with palette data
@@ -1536,7 +1547,8 @@ void generic_draw_paletted(struct polygon_set *polygon_set, struct indexed_verti
 
 		count -= var30;
 
-		gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, vertices, vertexcount, VREF(iv, indices), indexcount, UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
+		// TODO: OPENGL
+		//gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, vertices, vertexcount, VREF(iv, indices), indexcount, UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 	}
 }
 
@@ -1609,7 +1621,8 @@ void common_draw_lines(struct polygon_set *polygon_set, struct indexed_vertices 
 
 	if(trace_all) trace("dll_gfx: draw_lines\n");
 
-	gl_draw_indexed_primitive(GL_LINES, TLVERTEX, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
+	// TODO: OPENGL
+	//gl_draw_indexed_primitive(GL_LINES, TLVERTEX, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 }
 
 // noop
@@ -1647,115 +1660,6 @@ void qpc_get_time(time_t *dest)
 	QueryPerformanceCounter((LARGE_INTEGER *)dest);
 
 	stats.timer = *dest;
-}
-
-void APIENTRY gldebug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam)
-{
-	const char* _source = "Unknown";
-	switch (source) {
-		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   _source = "WindowSystem";		break;
-		case GL_DEBUG_SOURCE_APPLICATION:     _source = "Application";		break;
-		case GL_DEBUG_SOURCE_API:             _source = "API";				break;
-		case GL_DEBUG_SOURCE_SHADER_COMPILER: _source = "ShaderCompiler";	break;
-		case GL_DEBUG_SOURCE_THIRD_PARTY:     _source = "ThirdParty";		break;
-		case GL_DEBUG_SOURCE_OTHER:           _source = "Other";			break;
-	}
-
-	const char* _type = "Unknown";
-	switch (type) {
-		case GL_DEBUG_TYPE_ERROR:               _type = "Error";			break;
-		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: _type = "Deprecated";		break;
-		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  _type = "Undefined";		break;
-		case GL_DEBUG_TYPE_PORTABILITY:         _type = "Portability";		break;
-		case GL_DEBUG_TYPE_PERFORMANCE:         _type = "Performance";		break;
-		case GL_DEBUG_TYPE_MARKER:              _type = "Marker";			break;
-		case GL_DEBUG_TYPE_PUSH_GROUP:          _type = "PushGroup";		break;
-		case GL_DEBUG_TYPE_POP_GROUP:           _type = "PopGroup";			break;
-		case GL_DEBUG_TYPE_OTHER:				_type = "Other";			break;
-	}
-
-	const char* _severity = "Unknown";
-	switch (severity) {
-		case GL_DEBUG_SEVERITY_HIGH:         _severity = "High";			break;
-		case GL_DEBUG_SEVERITY_MEDIUM:       _severity = "Medium";			break;
-		case GL_DEBUG_SEVERITY_LOW:          _severity = "Low";				break;
-		case GL_DEBUG_SEVERITY_NOTIFICATION: _severity = "Notification";	break;
-	}
-
-	trace("OpenGL debug: Severity %s, %i %s %s: %s\n", _severity, id, _source, _type, message);
-
-	// Print stack trace only on errors
-	if (severity == GL_DEBUG_SEVERITY_HIGH) {
-		CONTEXT ctx;
-		
-		ctx.ContextFlags = CONTEXT_CONTROL;
-
-		if (
-			GetThreadContext(
-				GetCurrentThread(),
-				&ctx
-			)
-		)
-			printStack(&ctx);
-	}
-}
-
-PIXELFORMATDESCRIPTOR pfd = 
-{
-	sizeof(PIXELFORMATDESCRIPTOR),
-	1,
-	PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-	PFD_TYPE_RGBA,
-	32,                // 32 bits per pixel
-	0, 0, 0, 0, 0, 0,
-	8,                 // 8 bits of alpha
-	0,
-	0,
-	0, 0, 0, 0,
-	24,                // 24-bit Z buffer
-	0,
-	1,                 // 1 aux buffer
-	PFD_MAIN_PLANE,
-	0,
-	0, 0, 0
-};
-
-// setup OpenGL context
-uint init_opengl()
-{
-	GLuint PixelFormat;
-	HGLRC hRC;
-
-	hDC = GetDC(hwnd);
-	PixelFormat = ChoosePixelFormat(hDC, &pfd);
-	SetPixelFormat(hDC, PixelFormat, &pfd);
-	hRC = wglCreateContext(hDC);
-	wglMakeCurrent(hDC, hRC);
-
-	glewInit();
-
-	if (WGLEW_ARB_create_context)
-	{
-		static const int attributes[] = {
-			WGL_CONTEXT_MAJOR_VERSION_ARB, 2,
-			WGL_CONTEXT_MINOR_VERSION_ARB, 1,
-			WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-			WGL_CONTEXT_FLAGS_ARB, WGL_CONTEXT_DEBUG_BIT_ARB,
-			0
-		};
-
-		wglDeleteContext(hRC);
-		hRC = wglCreateContextAttribsARB(hDC, 0, attributes);
-		wglMakeCurrent(hDC, hRC);
-
-		glewInit();
-
-		info("OpenGL debug context created.\n");
-	}
-
-	info("%s %s %s\n", glGetString(GL_VENDOR), glGetString(GL_RENDERER), glGetString(GL_VERSION));
-
-	return true;
 }
 
 // version check reads from a given offset in memory
@@ -2010,6 +1914,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 		// in windowed mode we need to create our own window with the proper decorations
 		DestroyWindow(hwnd);
 
+
 		if(!AdjustWindowRectEx(&tmp, WS_CAPTION | WS_MINIMIZEBOX | WS_SYSMENU, false, 0)) windows_error(0);
 
 		w = tmp.right - tmp.left;
@@ -2028,71 +1933,10 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 		VRASS(game_object, hwnd, hwnd);
 	}
 
-	/*
-	 * OpenGL initialization and feature checks
-	 * OpenGL 2.0 is required since version 0.8
-	 */
+	// Init renderer
+	newRenderer.init();
 
-	init_opengl();
-
-	if(glewIsSupported("GL_VERSION_2_0")) info("OpenGL 2.0 support detected\n");
-	else
-	{
-		info("No OpenGL 2.0 support detected\n");
-		MessageBoxA(hwnd, "OpenGL renderer does not support OpenGL 2.0.\n"
-			"Your graphics drivers are probably not up to date.\n"
-			"Shaders are required since version 0.8.\n", "Error", 0);
-		exit(1);
-	}
-
-	if(!glewIsSupported("GL_VERSION_2_1"))
-	{
-		info("OpenGL 2.1 not available. PBO not supported\n");
-		use_pbo = cfg_bool_t(false);
-	}
-
-	if(use_pbo)
-	{
-		info("OpenGL 2.1 support detected. Using PBO\n");
-		gl_init_pbo_ring();
-	}
-
-	if(WGLEW_EXT_swap_control)
-	{
-		info("Found swap_control extension\n");
-		
-		if(enable_vsync)
-		{
-			wglSwapIntervalEXT(1);
-			if(wglGetSwapIntervalEXT() != 1) glitch("Unable to turn on vsync\n");
-		}
-		else
-		{
-			wglSwapIntervalEXT(0);
-			if(wglGetSwapIntervalEXT() != 0) glitch("Unable to turn off vsync\n");
-		}
-	}
-	else info("No swap_control extension, cannot control vsync\n");
-
-	if(compress_textures && !GLEW_ARB_texture_compression)
-	{
-		info("Texture compression not supported\n");
-		compress_textures = cfg_bool_t(false);
-	}
-
-	if(opengl_debug)
-	{
-		if(GLEW_ARB_debug_output)
-		{
-			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-			glDebugMessageCallbackARB(gldebug_callback, 0);
-			glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, true);
-			info("OpenGL debugging supported.\n");
-		}
-		else info("OpenGL debugging not supported.\n");
-	}
-
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
+	max_texture_size = newRenderer.getCaps().limits.max1DTextureSize;
 	info("Max texture size: %ix%i\n", max_texture_size, max_texture_size);
 
 	output_size_x = window_size_x;
@@ -2154,14 +1998,14 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 		}
 	}
 
-	if(!gl_load_shaders())
+	/*if(!gl_load_shaders())
 	{
 		error("failed to load shaders\n");
 		MessageBoxA(hwnd, "Failed to load shaders, check APP.LOG for more information.", "Error", 0);
 		exit(1);
-	}
+	}*/
 
-	if(enable_postprocessing && indirect_rendering)
+	/*if(enable_postprocessing && indirect_rendering)
 	{
 		if(!gl_init_postprocessing())
 		{
@@ -2169,13 +2013,15 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 			MessageBoxA(hwnd, "Postprocessing initialization failed, check APP.LOG for more information.", "Error", 0);
 			enable_postprocessing = cfg_bool_t(false);
 		}
-	}
+	}*/
 
+	/*
 	if(use_mipmaps && !GLEW_EXT_framebuffer_object)
 	{
 		error("no FBO support, will not be able to generate mipmaps\n");
 		use_mipmaps = cfg_bool_t(false);
 	}
+	*/
 
 	// perform any additional initialization that requires the rendering environment to be set up
 	if(!ff8) ff7_post_init();

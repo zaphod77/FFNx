@@ -23,7 +23,6 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <direct.h>
-#include <gl/glew.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -197,7 +196,8 @@ struct ext_cache_data *ext_cache_put(char *name, uint palette_index)
 		return 0;
 	}
 
-	glDeleteTextures(1, &ext_cache[oldest_texture]->data.texture);
+	// TODO: OPENGL
+	//glDeleteTextures(1, &ext_cache[oldest_texture]->data.texture);
 
 	stats.ext_cache_size -= ext_cache[oldest_texture]->data.size;
 
@@ -224,6 +224,8 @@ uint load_texture_helper(char *png_name, char *ctx_name, uint *width, uint *heig
 
 		gl_check_texture_dimensions(*width, *height, png_name);
 
+		// TODO: OPENGL
+		/*
 		if((use_compression && compress_textures))
 		{
 			ret = gl_compress_pixel_buffer(data, *width, *height, GL_BGRA);
@@ -240,6 +242,7 @@ uint load_texture_helper(char *png_name, char *ctx_name, uint *width, uint *heig
 			ret = gl_commit_pixel_buffer(data, *width, *height, GL_BGRA, true);
 			stats.ext_cache_size += (*width) * (*height) * 4;
 		}
+		*/
 	}
 
 	return ret;

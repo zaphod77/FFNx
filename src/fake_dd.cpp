@@ -21,7 +21,6 @@
  */
 
 #include <ddraw.h>
-#include <gl/glew.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -307,24 +306,25 @@ uint __stdcall fake_ddsurface_lock(struct ddsurface **me, LPRECT dest, LPDDSURFA
 	return DD_OK;
 }
 
-GLuint movie_texture;
+uint movie_texture;
 
 uint __stdcall fake_ddsurface_unlock(struct ddsurface **me, LPRECT dest)
 {
 	if(trace_fake_dx) trace("unlock\n");
 
-	glEnable(GL_TEXTURE_2D);
+	// TODO: OPENGL
+	//glEnable(GL_TEXTURE_2D);
 
-	if(movie_texture) glDeleteTextures(1, &movie_texture);
+	//if(movie_texture) glDeleteTextures(1, &movie_texture);
 
 	movie_texture = gl_create_empty_texture();
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 640, 480, 0, GL_BGR, GL_UNSIGNED_BYTE, fake_dd_surface_buffer);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 640, 480, 0, GL_BGR, GL_UNSIGNED_BYTE, fake_dd_surface_buffer);
 
-	gl_draw_movie_quad_bgra(movie_texture, 640, 480);
+	gl_draw_movie_quad(640, 480);
 
 	return DD_OK;
 }

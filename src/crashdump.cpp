@@ -138,7 +138,7 @@ void printStack(CONTEXT *ctx)
 			if (hModule != NULL)
 				GetModuleFileNameA(hModule, module, STACK_MAX_NAME_LENGTH);
 
-			trace("in %s\n", module);
+			trace("in \"%s\"\n", module);
 
 			//failed to get line
 			trace("\tat %s, address 0x%I64x\n", pSymbol->Name, pSymbol->Address);

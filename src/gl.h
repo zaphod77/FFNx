@@ -23,8 +23,6 @@
 #ifndef _DRIVER_GL_H_
 #define _DRIVER_GL_H_
 
-#include <gl/glew.h>
-
 #include "types.h"
 #include "common.h"
 #include "matrix.h"
@@ -62,7 +60,7 @@ struct driver_state
 
 struct deferred_draw
 {
-	GLenum primitivetype;
+	uint primitivetype;
 	uint vertextype;
 	uint vertexcount;
 	uint count;
@@ -86,41 +84,35 @@ extern struct matrix d3dviewport_matrix;
 
 extern struct driver_state current_state;
 
-extern GLuint current_program;
+extern uint current_program;
 
-extern GLint max_texture_size;
+extern int max_texture_size;
 
-void gl_draw_movie_quad_bgra(GLuint, int, int);
-void gl_draw_movie_quad_yuv(GLuint *, int, int, uint);
-GLuint gl_create_program(char *vertex_file, char *fragment_file, char *name);
-void gl_use_post_program();
-void gl_use_main_program();
-void gl_use_yuv_program();
+void gl_draw_movie_quad(int, int);
 void gl_save_state(struct driver_state *dest);
 void gl_load_state(struct driver_state *src);
-uint gl_defer_draw(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, uint clip, uint mipmap);
+uint gl_defer_draw(uint primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, uint clip, uint mipmap);
 void gl_draw_deferred();
 void gl_check_deferred(struct texture_set *texture_set);
-uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap);
+uint gl_special_case(uint primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap);
 void gl_draw_with_lighting(struct indexed_primitive *ip, uint clip, struct matrix *model_matrix);
-void gl_draw_indexed_primitive(GLenum, uint, struct nvertex *, uint, word *, uint, struct graphics_object *, uint clip, uint mipmap);
+void gl_draw_indexed_primitive(uint, uint, struct nvertex *, uint, word *, uint, struct graphics_object *, uint clip, uint mipmap);
 void gl_set_world_matrix(struct matrix *matrix);
 void gl_set_d3dprojection_matrix(struct matrix *matrix);
 void gl_set_blend_func(uint);
 void gl_check_texture_dimensions(uint width, uint height, char *source);
-GLuint gl_create_empty_texture();
-GLuint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps);
+uint gl_create_empty_texture();
+uint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps);
 void gl_init_pbo_ring();
 void *gl_get_pixel_buffer(uint size);
-GLuint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, uint generate_mipmaps);
-GLuint gl_compress_pixel_buffer(void *data, uint width, uint height, uint format);
-GLuint gl_commit_compressed_buffer(void *data, uint width, uint height, uint format, uint size);
+uint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, uint generate_mipmaps);
+uint gl_compress_pixel_buffer(void *data, uint width, uint height, uint format);
+uint gl_commit_compressed_buffer(void *data, uint width, uint height, uint format, uint size);
 void gl_replace_texture(struct texture_set *texture_set, uint palette_index, uint new_texture);
 void gl_upload_texture(struct texture_set *texture_set, uint palette_index, void *image_data, uint format);
 void gl_bind_texture_set(struct texture_set *);
-void gl_set_texture(GLuint);
+void gl_set_texture(uint);
 uint gl_init_indirect();
-uint gl_init_postprocessing();
 void gl_prepare_flip();
 void gl_prepare_render();
 uint gl_load_shaders();

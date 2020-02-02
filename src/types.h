@@ -26,7 +26,4 @@
 typedef unsigned short word;
 typedef unsigned int uint;
 
-#define true 1
-#define false 0
-
 #endif

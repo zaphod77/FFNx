@@ -1,4 +1,4 @@
-add_subdirectory(glew)
+add_subdirectory(LLGL)
 add_subdirectory(ffmpeg)
 add_subdirectory(libpng)
 add_subdirectory(libconfuse)

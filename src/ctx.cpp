@@ -21,7 +21,6 @@
  */
 
 #include <stdio.h>
-#include <gl/glew.h>
 #include <direct.h>
 
 #if defined(__cplusplus)
@@ -51,12 +50,15 @@ uint write_ctx(char *filename, uint width, uint height, uint texture)
 	FILE *f;
 	struct ctx_header header;
 	char *data;
-	GLint tmp;
+	int tmp;
 	char *next = filename;
 
+	// TODO: OPENGL
+	/*
 	glBindTexture(GL_TEXTURE_2D, texture);
 
 	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_ARB, &tmp);
+	*/
 
 	if(!tmp)
 	{
@@ -87,24 +89,25 @@ uint write_ctx(char *filename, uint width, uint height, uint texture)
 	header.width = width;
 	header.height = height;
 
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &tmp);
+	// TODO: OPENGL
+	//glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &tmp);
 	header.format = tmp;
 
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
+	//glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
 	header.size = tmp;
 
 	fwrite(&header, sizeof(header), 1, f);
 
 	data = (char*)driver_malloc(header.size);
 
-	glGetCompressedTexImageARB(GL_TEXTURE_2D, 0, data);
+	//glGetCompressedTexImageARB(GL_TEXTURE_2D, 0, data);
 
 	fwrite(data, header.size, 1, f);
 
 	driver_free(data);
 	fclose(f);
 
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
+	//glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
 
 	if(trace_all) trace("Texture compression ratio: %i:1\n", (width * height * 4) / tmp);
 
@@ -119,8 +122,8 @@ uint read_ctx(char *filename, uint *width, uint *height)
 	FILE *f;
 	struct ctx_header header;
 	char *data;
-	GLuint texture;
-	GLint tmp;
+	uint texture;
+	int tmp;
 
 	if(fopen_s(&f, filename, "rb")) return 0;
 
@@ -139,7 +142,8 @@ uint read_ctx(char *filename, uint *width, uint *height)
 
 	fclose(f);
 
-	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
+	// TODO: OPENGL
+	//glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_COMPRESSED_IMAGE_SIZE_ARB, &tmp);
 
 	if(trace_all) trace("Texture compression ratio: %i:1\n", ((*width) * (*height) * 4) / tmp);
 
