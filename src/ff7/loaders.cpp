@@ -200,7 +200,7 @@ void destroy_tex_header(struct ff7_tex_header *tex_header)
 {
 	if(!tex_header) return;
 
-	if((uint)tex_header->file.pc_name > 32) external_free(tex_header->file.pc_name);
+	if((uint)tex_header->file.pc_name > 32) driver_free(tex_header->file.pc_name);
 
 	external_free(tex_header->old_palette_data);
 	external_free(tex_header->palette_colorkey);
