@@ -1,4 +1,6 @@
-#define inline _inline
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include "ffmpeg_movies.h"
 
@@ -16,12 +18,12 @@ inline double round(double x) { return floor(x + 0.5); }
 
 #define LAG (((now - start_time) - (timer_freq / movie_fps) * movie_frame_counter) / (timer_freq / 1000))
 
-uint texture_units = 1;
+GLint texture_units = 1;
 
-bool yuv_init_done = false;
-bool yuv_fast_path = false;
+uint yuv_init_done = false;
+uint yuv_fast_path = false;
 
-bool audio_must_be_converted = false;
+uint audio_must_be_converted = false;
 
 AVFormatContext *format_ctx = 0;
 AVCodecContext *codec_ctx = 0;
@@ -35,7 +37,7 @@ SwrContext* swr_ctx = NULL;
 int videostream;
 int audiostream;
 
-bool use_bgra_texture;
+uint use_bgra_texture;
 
 struct video_frame
 {
@@ -47,22 +49,20 @@ struct video_frame video_buffer[VIDEO_BUFFER_SIZE];
 uint vbuffer_read = 0;
 uint vbuffer_write = 0;
 
-uint max_texture_size;
-
 uint movie_frame_counter = 0;
 uint movie_frames;
 uint movie_width, movie_height;
 double movie_fps;
 double movie_duration;
 
-bool skipping_frames;
+uint skipping_frames;
 uint skipped_frames;
 
 IDirectSoundBuffer *sound_buffer = 0;
 uint sound_buffer_size;
 uint write_pointer = 0;
 
-bool first_audio_packet;
+uint first_audio_packet;
 
 time_t timer_freq;
 time_t start_time;
@@ -113,8 +113,6 @@ void ffmpeg_movie_init()
 
 	if(texture_units < 3) info("No multitexturing, codecs with YUV output will be slow. (texture units: %i)\n", texture_units);
 	else yuv_fast_path = true;
-
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
 
 	QueryPerformanceFrequency((LARGE_INTEGER *)&timer_freq);
 }
@@ -330,7 +328,7 @@ void ffmpeg_stop_movie()
 	if(sound_buffer && *common_externals.directsound) IDirectSoundBuffer_Stop(sound_buffer);
 }
 
-void buffer_bgra_frame(char *data, int upload_stride)
+void buffer_bgra_frame(uint8_t *data, int upload_stride)
 {
 	uint upload_width = codec_ctx->pix_fmt == AV_PIX_FMT_BGRA ? upload_stride / 4 : upload_stride / 3;
 
@@ -361,7 +359,7 @@ void draw_bgra_frame(uint buffer_index)
 	gl_draw_movie_quad_bgra(video_buffer[buffer_index].bgra_texture, movie_width, movie_height);
 }
 
-void upload_yuv_texture(char **planes, uint *strides, uint num, uint buffer_index)
+void upload_yuv_texture(uint8_t **planes, int *strides, uint num, uint buffer_index)
 {
 	uint upload_width = strides[num];
 	uint tex_width = num == 0 ? movie_width : movie_width / 2;
@@ -386,7 +384,7 @@ void upload_yuv_texture(char **planes, uint *strides, uint num, uint buffer_inde
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
-void buffer_yuv_frame(char **planes, uint *strides)
+void buffer_yuv_frame(uint8_t **planes, int *strides)
 {
 	if(video_buffer[vbuffer_write].yuv_textures[0]) glDeleteTextures(3, video_buffer[vbuffer_write].yuv_textures);
 
@@ -399,7 +397,7 @@ void buffer_yuv_frame(char **planes, uint *strides)
 	vbuffer_write = (vbuffer_write + 1) % VIDEO_BUFFER_SIZE;
 }
 
-void draw_yuv_frame(uint buffer_index, bool full_range)
+void draw_yuv_frame(uint buffer_index, uint full_range)
 {
 	glActiveTexture(GL_TEXTURE0 + 2);
 	glBindTexture(GL_TEXTURE_2D, video_buffer[buffer_index].yuv_textures[2]);
@@ -412,7 +410,7 @@ void draw_yuv_frame(uint buffer_index, bool full_range)
 }
 
 // display the next frame
-bool ffmpeg_update_movie_sample()
+uint ffmpeg_update_movie_sample()
 {
 	AVPacket packet;
 	int ret;
@@ -469,9 +467,9 @@ bool ffmpeg_update_movie_sample()
 				
 				if(sws_ctx)
 				{
-					char *planes[3] = {0, 0, 0};
+					uint8_t *planes[3] = {0, 0, 0};
 					int strides[3] = {0, 0, 0};
-					char *data = calloc(movie_width * movie_height, 3);
+					uint8_t *data = (uint8_t*)calloc(movie_width * movie_height, 3);
 
 					planes[0] = data;
 					strides[0] = movie_width * 3;
@@ -504,8 +502,8 @@ bool ffmpeg_update_movie_sample()
 			uint8_t *buffer;
 			int buffer_size = 0;
 			int used_bytes;
-			uint playcursor;
-			uint writecursor;
+			DWORD playcursor;
+			DWORD writecursor;
 			uint bytesperpacket = audio_must_be_converted ? av_get_bytes_per_sample(AV_SAMPLE_FMT_S16) : av_get_bytes_per_sample(acodec_ctx->sample_fmt);
 			uint bytespersec = bytesperpacket * acodec_ctx->channels * acodec_ctx->sample_rate;
 
@@ -539,13 +537,13 @@ bool ffmpeg_update_movie_sample()
 				// Sometimes the captured frame may have no sound samples. Just skip and move forward
 				if (_size)
 				{
-					char* ptr1;
-					char* ptr2;
-					uint bytes1;
-					uint bytes2;
+					LPVOID ptr1;
+					LPVOID ptr2;
+					DWORD bytes1;
+					DWORD bytes2;
 
 					av_samples_alloc(&buffer, movie_frame->linesize, acodec_ctx->channels, movie_frame->nb_samples, (audio_must_be_converted ? AV_SAMPLE_FMT_S16 : acodec_ctx->sample_fmt), 0);
-					if (audio_must_be_converted) swr_convert(swr_ctx, &buffer, movie_frame->nb_samples, movie_frame->extended_data, movie_frame->nb_samples);
+					if (audio_must_be_converted) swr_convert(swr_ctx, &buffer, movie_frame->nb_samples, (const uint8_t**)movie_frame->extended_data, movie_frame->nb_samples);
 					else av_samples_copy(&buffer, movie_frame->extended_data, 0, 0, movie_frame->nb_samples, acodec_ctx->channels, acodec_ctx->sample_fmt);
 
 					if (sound_buffer) {
@@ -628,3 +626,7 @@ uint ffmpeg_get_movie_frame()
 	if(movie_fps != 15.0 && movie_fps < 100.0) return (uint)ceil(movie_frame_counter * 15.0 / movie_fps);
 	else return movie_frame_counter;
 }
+
+#if defined(__cplusplus)
+}
+#endif

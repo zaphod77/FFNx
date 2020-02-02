@@ -6,7 +6,7 @@ find_package(FFMPEG REQUIRED)
 find_package(VGMSTREAM REQUIRED)
 
 # Include all the source code files
-file(GLOB_RECURSE source_files "*.h" "*.c")
+file(GLOB_RECURSE source_files "*.h" "*.cpp")
 
 add_library(FFNx SHARED ${source_files})
 target_include_directories(FFNx PRIVATE "${CMAKE_SOURCE_DIR}/src")

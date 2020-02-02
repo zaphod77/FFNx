@@ -25,6 +25,10 @@
 #include <zlib.h>
 #include <direct.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "log.h"
 #include "globals.h"
@@ -40,7 +44,7 @@ void _png_warning(png_structp png_ptr, const char *warning)
 	info("libpng warning: %s\n", warning);
 }
 
-bool write_png(char *filename, uint width, uint height, char *data)
+uint write_png(char *filename, uint width, uint height, char *data)
 {
 	uint y;
 	png_byte **rowptrs;
@@ -84,9 +88,9 @@ bool write_png(char *filename, uint width, uint height, char *data)
 	
 	png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	
-	rowptrs = driver_malloc(height * 4);
+	rowptrs = (png_byte**)driver_malloc(height * 4);
 	
-	for(y = 0; y < height; y++) rowptrs[y] = &data[y * width * 4];
+	for(y = 0; y < height; y++) rowptrs[y] = (png_byte*)&data[y * width * 4];
 	
 	png_set_rows(png_ptr, info_ptr, rowptrs);
 	
@@ -164,7 +168,7 @@ uint *read_png(char *filename, uint *_width, uint *_height)
 	height = png_get_image_height(png_ptr, info_ptr);
 	*_height = height;
 
-	data = gl_get_pixel_buffer(width * height * 4);
+	data = (uint*)gl_get_pixel_buffer(width * height * 4);
 
 	if(color_type == PNG_COLOR_TYPE_RGB)
 	{
@@ -193,3 +197,7 @@ uint *read_png(char *filename, uint *_width, uint *_height)
 
 	return data;
 }
+
+#if defined(__cplusplus)
+}
+#endif

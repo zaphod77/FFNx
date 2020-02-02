@@ -22,78 +22,78 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <confuse.h>
 
-#include "types.h"
-#include "log.h"
-#include "globals.h"
-#include "compile_cfg.h"
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#include "cfg.h"
 
 // configuration variables with their default values
 char *mod_path;
-bool use_external_movie = true;
-bool use_external_music = true;
-bool save_textures = false;
+cfg_bool_t use_external_movie = cfg_bool_t(true);
+cfg_bool_t use_external_music = cfg_bool_t(true);
+cfg_bool_t save_textures = cfg_bool_t(false);
 char *traced_texture;
 char *vert_source;
 char *frag_source;
 char *yuv_source;
 char *post_source;
-bool enable_postprocessing = false;
-bool trace_all = false;
-bool trace_movies = false;
-bool trace_fake_dx = false;
-bool trace_direct = false;
-bool trace_files = false;
-bool trace_loaders = false;
-bool trace_lights = false;
-bool vertex_log = false;
-bool show_fps = false;
-bool show_stats = false;
-uint window_size_x = 0;
-uint window_size_y = 0;
-int window_pos_x = 0;
-int window_pos_y = 0;
-bool preserve_aspect = true;
-bool fullscreen = true;
-uint refresh_rate = 0;
-bool prevent_rounding_errors = true;
-uint internal_size_x = 0;
-uint internal_size_y = 0;
-bool enable_vsync = true;
-uint field_framerate = 60;
-uint battle_framerate = 60;
-uint worldmap_framerate = 60;
-uint menu_framerate = 60;
-uint chocobo_framerate = 60;
-uint condor_framerate = 60;
-uint submarine_framerate = 60;
-uint gameover_framerate = 60;
-uint credits_framerate = 60;
-uint snowboard_framerate = 60;
-uint highway_framerate = 30;
-uint coaster_framerate = 60;
-uint battleswirl_framerate = 60;
-bool use_new_timer = true;
-bool linear_filter = false;
-bool transparent_dialogs = false;
-bool mdef_fix = true;
-bool fancy_transparency = true;
-bool compress_textures = false;
-uint texture_cache_size = 256;
-bool use_pbo = true;
-bool use_mipmaps = true;
-bool skip_frames = false;
-bool more_ff7_debug = false;
-bool show_applog = true;
-bool direct_mode = false;
-bool show_missing_textures = false;
-bool ff7_popup = false;
-bool info_popup = false;
+cfg_bool_t enable_postprocessing = cfg_bool_t(false);
+cfg_bool_t trace_all = cfg_bool_t(false);
+cfg_bool_t trace_movies = cfg_bool_t(false);
+cfg_bool_t trace_fake_dx = cfg_bool_t(false);
+cfg_bool_t trace_direct = cfg_bool_t(false);
+cfg_bool_t trace_files = cfg_bool_t(false);
+cfg_bool_t trace_loaders = cfg_bool_t(false);
+cfg_bool_t trace_lights = cfg_bool_t(false);
+cfg_bool_t vertex_log = cfg_bool_t(false);
+cfg_bool_t show_fps = cfg_bool_t(false);
+cfg_bool_t show_stats = cfg_bool_t(false);
+long window_size_x = 0;
+long window_size_y = 0;
+long window_pos_x = 0;
+long window_pos_y = 0;
+cfg_bool_t preserve_aspect = cfg_bool_t(true);
+cfg_bool_t fullscreen = cfg_bool_t(true);
+long refresh_rate = 0;
+cfg_bool_t prevent_rounding_errors = cfg_bool_t(true);
+long internal_size_x = 0;
+long internal_size_y = 0;
+cfg_bool_t enable_vsync = cfg_bool_t(true);
+long field_framerate = 60;
+long battle_framerate = 60;
+long worldmap_framerate = 60;
+long menu_framerate = 60;
+long chocobo_framerate = 60;
+long condor_framerate = 60;
+long submarine_framerate = 60;
+long gameover_framerate = 60;
+long credits_framerate = 60;
+long snowboard_framerate = 60;
+long highway_framerate = 30;
+long coaster_framerate = 60;
+long battleswirl_framerate = 60;
+cfg_bool_t use_new_timer = cfg_bool_t(true);
+cfg_bool_t linear_filter = cfg_bool_t(false);
+cfg_bool_t transparent_dialogs = cfg_bool_t(false);
+cfg_bool_t mdef_fix = cfg_bool_t(true);
+cfg_bool_t fancy_transparency = cfg_bool_t(true);
+cfg_bool_t compress_textures = cfg_bool_t(false);
+long texture_cache_size = 256;
+cfg_bool_t use_pbo = cfg_bool_t(true);
+cfg_bool_t use_mipmaps = cfg_bool_t(true);
+cfg_bool_t skip_frames = cfg_bool_t(false);
+cfg_bool_t more_ff7_debug = cfg_bool_t(false);
+cfg_bool_t show_applog = cfg_bool_t(true);
+cfg_bool_t direct_mode = cfg_bool_t(false);
+cfg_bool_t show_missing_textures = cfg_bool_t(false);
+cfg_bool_t ff7_popup = cfg_bool_t(false);
+cfg_bool_t info_popup = cfg_bool_t(false);
 char *load_library;
-bool opengl_debug = false;
-bool movie_sync_debug = false;
-bool force_cache_purge = false;
+cfg_bool_t opengl_debug = cfg_bool_t(false);
+cfg_bool_t movie_sync_debug = cfg_bool_t(false);
+cfg_bool_t force_cache_purge = cfg_bool_t(false);
 
 cfg_opt_t opts[] = {
 		CFG_SIMPLE_STR("mod_path", &mod_path),
@@ -184,7 +184,7 @@ void read_cfg()
 	cfg_t *cfg;
 
 	mod_path = _strdup("");
-	use_external_movie = !ff8;
+	use_external_movie = cfg_bool_t(!ff8);
 	vert_source = _strdup("shaders/main.vert");
 	frag_source = _strdup("shaders/main.frag");
 	yuv_source = _strdup("shaders/yuv.frag");
@@ -208,6 +208,10 @@ void read_cfg()
 #ifdef SINGLE_STEP
 	window_size_x = 0;
 	window_size_y = 0;
-	fullscreen = false;
+	fullscreen = cfg_bool_t(false);
 #endif
 }
+
+#if defined(__cplusplus)
+}
+#endif

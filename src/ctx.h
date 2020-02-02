@@ -25,7 +25,7 @@
 
 #include "types.h"
 
-bool write_ctx(char *filename, uint width, uint height, uint texture);
+uint write_ctx(char *filename, uint width, uint height, uint texture);
 uint read_ctx(char *filename, uint *width, uint *height);
 
 #endif

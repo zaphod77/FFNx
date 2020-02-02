@@ -25,6 +25,10 @@
 #include <direct.h>
 #include <gl/glew.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "globals.h"
 #include "log.h"
@@ -52,7 +56,7 @@ void make_path(char *name)
 	}
 }
 
-bool save_texture(void *data, uint width, uint height, uint palette_index, char *name)
+uint save_texture(void *data, uint width, uint height, uint palette_index, char *name)
 {
 	char filename[sizeof(basedir) + 1024];
 	struct stat dummy;
@@ -61,7 +65,7 @@ bool save_texture(void *data, uint width, uint height, uint palette_index, char 
 
 	make_path(filename);
 
-	if(stat(filename, &dummy)) return write_png(filename, width, height, data);
+	if(stat(filename, &dummy)) return write_png(filename, width, height, (char*)data);
 	else return true;
 }
 
@@ -158,8 +162,8 @@ struct ext_cache_data *ext_cache_put(char *name, uint palette_index)
 		{
 			if(!ext_cache[i])
 			{
-				ext_cache[i] = driver_calloc(sizeof(*ext_cache[i]), 1);
-				ext_cache[i]->name = driver_malloc(strlen(name) + 1);
+				ext_cache[i] = (ext_cache_entry*)driver_calloc(sizeof(*ext_cache[i]), 1);
+				ext_cache[i]->name = (char*)driver_malloc(strlen(name) + 1);
 				strcpy(ext_cache[i]->name, name);
 				ext_cache[i]->palette_index = palette_index;
 
@@ -197,7 +201,7 @@ struct ext_cache_data *ext_cache_put(char *name, uint palette_index)
 
 	stats.ext_cache_size -= ext_cache[oldest_texture]->data.size;
 
-	ext_cache[oldest_texture]->name = driver_realloc(ext_cache[oldest_texture]->name, strlen(name) + 1);
+	ext_cache[oldest_texture]->name = (char*)driver_realloc(ext_cache[oldest_texture]->name, strlen(name) + 1);
 	strcpy(ext_cache[oldest_texture]->name, name);
 	ext_cache[oldest_texture]->palette_index = palette_index;
 	memset(&ext_cache[oldest_texture]->data, 0, sizeof(ext_cache[oldest_texture]->data));
@@ -207,7 +211,7 @@ struct ext_cache_data *ext_cache_put(char *name, uint palette_index)
 	return &ext_cache[oldest_texture]->data;
 }
 
-uint load_texture_helper(char *png_name, char *ctx_name, uint *width, uint *height, bool use_compression)
+uint load_texture_helper(char *png_name, char *ctx_name, uint *width, uint *height, uint use_compression)
 {
 	uint ret;
 	uint *data;
@@ -241,7 +245,7 @@ uint load_texture_helper(char *png_name, char *ctx_name, uint *width, uint *heig
 	return ret;
 }
 
-uint load_texture(char *name, uint palette_index, uint *width, uint *height, bool use_compression)
+uint load_texture(char *name, uint palette_index, uint *width, uint *height, uint use_compression)
 {
 	char png_name[sizeof(basedir) + 1024];
 	char ctx_name[sizeof(basedir) + 1024];
@@ -283,3 +287,7 @@ uint load_texture(char *name, uint palette_index, uint *width, uint *height, boo
 
 	return ret;
 }
+
+#if defined(__cplusplus)
+}
+#endif

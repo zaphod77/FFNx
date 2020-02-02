@@ -29,11 +29,11 @@ struct music_plugin
 {
 	void (*music_init)(void *, void *, void *, void *, void **, const char *);
 	void (*play_music)(char *, uint);
-	bool (*cross_fade_music)(char *, uint, uint);
+	uint (*cross_fade_music)(char *, uint, uint);
 	void (*pause_music)();
 	void (*resume_music)();
 	void (*stop_music)();
-	bool (*music_status)();
+	uint (*music_status)();
 	void (*set_master_music_volume)(uint);
 	void (*set_music_volume)(uint);
 	void (*set_music_volume_trans)(uint, uint);
@@ -41,14 +41,14 @@ struct music_plugin
 };
 
 void music_init();
-bool midi_init(uint unknown);
+uint midi_init(uint unknown);
 void cleanup_midi();
 void play_midi(uint midi);
 void cross_fade_midi(uint midi, uint time);
 void pause_midi();
 void restart_midi();
 void stop_midi();
-bool midi_status();
+uint midi_status();
 void set_master_midi_volume(uint volume);
 void set_midi_volume(uint volume);
 void set_midi_volume_trans(uint volume, uint step);

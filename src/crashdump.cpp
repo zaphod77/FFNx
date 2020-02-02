@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <dbghelp.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "crashdump.h"
 #include "globals.h"
 #include "types.h"
@@ -62,7 +66,7 @@ static const char save_name[] = "\x25" "MERGENCY" "\x00\x33" "AVE" "\xFF";
 // Via https://stackoverflow.com/a/50208684
 void printStack(CONTEXT *ctx)
 {
-	BOOL result;
+	uint result;
 	HANDLE process;
 	HANDLE thread;
 	HMODULE hModule;
@@ -147,9 +151,9 @@ void printStack(CONTEXT *ctx)
 
 LONG WINAPI ExceptionHandler(EXCEPTION_POINTERS *ep)
 {
-	static bool had_exception = false;
+	static uint had_exception = false;
 	char filename[4096];
-	bool save;
+	uint save;
 
 	// give up if we crash again inside the exception handler (this function)
 	if(had_exception)
@@ -246,3 +250,7 @@ LONG WINAPI ExceptionHandler(EXCEPTION_POINTERS *ep)
 	SetUnhandledExceptionFilter(0);
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
+
+#if defined(__cplusplus)
+}
+#endif

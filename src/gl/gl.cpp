@@ -25,6 +25,10 @@
 #include <stdio.h>
 #include <math.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../cfg.h"
 #include "../common.h"
@@ -47,11 +51,11 @@ GLuint indirect_texture;
 GLuint indirect_fbo;
 GLuint depthbuffer;
 
-bool yuv_shader_loaded = false;
+uint yuv_shader_loaded = false;
 
-uint max_texture_size;
+GLint max_texture_size;
 
-extern bool nodefer;
+extern uint nodefer;
 
 extern uint main_program;
 extern uint post_program;
@@ -101,7 +105,7 @@ void gl_draw_movie_quad_bgra(GLuint movie_texture, int movie_width, int movie_he
 }
 
 // draw movie frame from YUV data, called from movie plugin
-void gl_draw_movie_quad_yuv(GLuint *yuv_textures, int movie_width, int movie_height, bool full_range)
+void gl_draw_movie_quad_yuv(GLuint *yuv_textures, int movie_width, int movie_height, uint full_range)
 {
 	struct driver_state saved_state;
 
@@ -163,20 +167,20 @@ void gl_load_state(struct driver_state *src)
 
 // draw a set of primitives with a known model->world transformation
 // interesting for real-time lighting, maps to normal rendering routine for now
-void gl_draw_with_lighting(struct indexed_primitive *ip, bool clip, struct matrix *model_matrix)
+void gl_draw_with_lighting(struct indexed_primitive *ip, uint clip, struct matrix *model_matrix)
 {
 	gl_draw_indexed_primitive(ip->primitivetype, ip->vertextype, ip->vertices, ip->vertexcount, ip->indices, ip->indexcount, 0, clip, true);
 }
 
 // main rendering routine, draws a set of primitives according to the current render state
-void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, bool clip, bool mipmap)
+void gl_draw_indexed_primitive(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
 {
 	FILE *log;
 	uint i;
 	uint mode = getmode_cached()->driver_mode;
 	// filter setting can change inside this function, we don't want that to
 	// affect the global rendering state so save & restore it
-	bool saved_texture_filter = current_state.texture_filter;
+	uint saved_texture_filter = current_state.texture_filter;
 
 	// should never happen, broken 3rd-party models cause this
 	if(!count) return;
@@ -316,7 +320,7 @@ void gl_set_blend_func(uint blend_mode)
 }
 
 // draw text on screen using the game font
-bool gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
+uint gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 {
 	uint tile_width = 24;
 	uint tile_height = 24;
@@ -357,11 +361,11 @@ bool gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 
 	if(!VPTR(object_a)) return false;
 	if(!VREF(object_a, hundred_data)) return false;
-	VASS(font_a, VREF(object_a, hundred_data->texture_set));
+	VASS(texture_set, font_a, VREF(object_a, hundred_data->texture_set));
 
 	if(!VPTR(object_b)) return false;
 	if(!VREF(object_b, hundred_data)) return false;
-	VASS(font_b, VREF(object_b, hundred_data->texture_set));
+	VASS(texture_set, font_b, VREF(object_b, hundred_data->texture_set));
 
 	if(!VPTR(font_a) || !VPTR(font_b)) return false;
 
@@ -369,10 +373,10 @@ bool gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 
 	gl_save_state(&saved_state);
 
-	vertices_a = driver_malloc(len * sizeof(struct nvertex) * 4);
-	indices_a = driver_malloc(len * 2 * 4);
-	vertices_b = driver_malloc(len * sizeof(struct nvertex) * 4);
-	indices_b = driver_malloc(len * 2 * 4);
+	vertices_a = (struct nvertex*)driver_malloc(len * sizeof(struct nvertex) * 4);
+	indices_a = (word*)driver_malloc(len * 2 * 4);
+	vertices_b = (struct nvertex*)driver_malloc(len * sizeof(struct nvertex) * 4);
+	indices_b = (word*)driver_malloc(len * 2 * 4);
 
 	for(i = 0; i < len; i++)
 	{
@@ -446,17 +450,17 @@ bool gl_draw_text(uint x, uint y, uint color, uint alpha, char *fmt, ...)
 	if(vert_a > 0)
 	{
 		VRASS(font_a, palette_index, color);
-		common_palette_changed(0, 0, 0, VREF(font_a, palette), VPTR(font_a));
+		common_palette_changed(0, 0, 0, VREF(font_a, palette), VPTRCAST(texture_set, font_a));
 
-		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_a, vert_a, indices_a, vert_a, VPTR(object_a), false, true);
+		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_a, vert_a, indices_a, vert_a, VPTRCAST(graphics_object, object_a), false, true);
 	}
 
 	if(vert_b > 0)
 	{
 		VRASS(font_b, palette_index, color);
-		common_palette_changed(0, 0, 0, VREF(font_b, palette), VPTR(font_b));
+		common_palette_changed(0, 0, 0, VREF(font_b, palette), VPTRCAST(texture_set, font_b));
 
-		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_b, vert_b, indices_b, vert_b, VPTR(object_b), false, true);
+		gl_draw_indexed_primitive(GL_QUADS, TLVERTEX, vertices_b, vert_b, indices_b, vert_b, VPTRCAST(graphics_object, object_b), false, true);
 	}
 
 	nodefer = false;
@@ -541,11 +545,11 @@ void gl_prepare_render()
 	glViewport(0, 0, internal_size_x, internal_size_y);
 }
 
-bool gl_load_shaders()
+uint gl_load_shaders()
 {
-	uint max_interpolators;
-	uint max_vert_uniforms;
-	uint max_frag_uniforms;
+	GLint max_interpolators;
+	GLint max_vert_uniforms;
+	GLint max_frag_uniforms;
 
 	glGetIntegerv(GL_MAX_VARYING_FLOATS, &max_interpolators);
 	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &max_vert_uniforms);
@@ -564,7 +568,7 @@ bool gl_load_shaders()
 	return true;
 }
 
-bool gl_init_indirect()
+uint gl_init_indirect()
 {
 	uint fbo_width = internal_size_x, fbo_height = internal_size_y;
 
@@ -604,7 +608,11 @@ bool gl_init_indirect()
 	return true;
 }
 
-bool gl_init_postprocessing()
+uint gl_init_postprocessing()
 {
 	return (post_program = gl_create_program(0, post_source, "postprocessing")) != 0;
 }
+
+#if defined(__cplusplus)
+}
+#endif

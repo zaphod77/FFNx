@@ -168,7 +168,7 @@ enum
 
 struct list
 {
-	bool use_assert_alloc;
+	uint use_assert_alloc;
 	uint field_4;
 	uint nodes;
 	struct list_node *head;
@@ -187,7 +187,7 @@ struct list_node
 struct file_context
 {
 	uint mode;
-	bool use_lgp;
+	uint use_lgp;
 	uint lgp_num;
 	void (*name_mangler)(char *, char *);
 };
@@ -256,7 +256,7 @@ struct ff7_graphics_object
 	struct ff7_indexed_vertices *indexed_vertices;
 	gfx_polysetrenderstate *func_90;
 	gfx_draw_vertices *func_94;
-	bool use_matrix_pointer;
+	uint use_matrix_pointer;
 	struct matrix *matrix_pointer;
 	struct matrix matrix;
 };
@@ -324,7 +324,7 @@ struct ff7_polygon_set
 	uint field_2C;
 	struct polygon_data *polygon_data;
 	struct p_hundred *hundred_data;
-	bool per_group_hundreds;
+	uint per_group_hundreds;
 	struct p_hundred **hundred_data_group_array;
 	struct matrix_set *matrix_set;
 	struct ff7_light *light;
@@ -347,7 +347,7 @@ struct ff7_polygon_set
 	uint field_88;
 	uint field_8C;
 	uint field_90;
-	bool has_struc_173;
+	uint has_struc_173;
 	uint field_98;
 	struct struc_173 *struc_173;
 	uint field_A0;
@@ -428,7 +428,7 @@ struct ff7_texture_set
 
 		struct
 		{
-			bool external;
+			uint external;
 			struct gl_texture_set *gl_set;
 			uint width;
 			uint height;
@@ -478,7 +478,7 @@ struct field_layer
 	struct ff7_tex_header *tex_header;
 	void *image_data;
 	struct ff7_graphics_object *graphics_object;
-	bool present;
+	uint present;
 	uint field_10;
 	uint field_14;
 	word field_18;
@@ -542,7 +542,7 @@ struct struc_110
 
 struct battle_chdir_struc
 {
-	bool sucess;
+	uint sucess;
 	char olddir[200];
 };
 
@@ -601,7 +601,7 @@ struct anim_header
 	char rotation_order[4];
 	void *frame_data;
 	struct anim_frame *anim_frames;
-	bool use_matrix_array;
+	uint use_matrix_array;
 	struct matrix *matrix_array;
 	struct matrix *current_matrix_array;
 };
@@ -974,7 +974,7 @@ struct field_tile
 	char field_38[4096];
 	word field_1038;
 	word field_103A;
-	bool use_fx_page;
+	uint use_fx_page;
 	uint field_1040;
 	uint field_1044;
 	uint field_1048;
@@ -993,8 +993,8 @@ struct struc_3
 {
 	uint field_0;
 	uint field_4;
-	bool convert_animations;
-	bool create_matrix_set;
+	uint convert_animations;
+	uint create_matrix_set;
 	uint field_10;
 	uint matrix_set_size;
 	struct graphics_instance *graphics_instance;
@@ -1215,7 +1215,7 @@ struct ff7_game_obj
 	DDSURFACEDESC front_surface_desc[3];
 	uint field_1CC;
 	uint field_1D0;
-	IDirectDrawClipper dd_clipper;
+	IDirectDrawClipper* dd_clipper;
 	uint field_1D8;
 	DDSURFACEDESC d3d_surfacedesc;
 	void *dd_interface;
@@ -1257,7 +1257,7 @@ struct ff7_game_obj
 	uint in_scene;
 	struct p_hundred *hundred_array[5];
 	void *applog_debug1;
-	bool applog_debug2;
+	uint applog_debug2;
 	void *dxdbg_file;
 	uint field_840;
 	uint field_844;
@@ -1304,7 +1304,7 @@ struct ff7_game_obj
 	uint field_960;
 	uint field_964;
 	uint field_968;
-	bool no_hardware;
+	uint no_hardware;
 	uint field_970;
 	uint field_974;
 	uint colorkey;
@@ -1356,9 +1356,9 @@ struct ff7_game_obj
 	uint field_A84;
 	void *create_gfx_driver;
 	struct dll_gfx_externals *externals;
-	bool nvidia_fix;
-	bool tnt_fix;
-	bool no_riva_fix;
+	uint nvidia_fix;
+	uint tnt_fix;
+	uint no_riva_fix;
 	uint field_A9C;
 };
 
@@ -1471,7 +1471,7 @@ struct ff7_externals
 	uint graphics_render_sub_68A638;
 	uint create_dx_sfx_something;
 	uint load_p_file;
-	struct polygon_data *(*create_polygon_data)(bool, uint);
+	struct polygon_data *(*create_polygon_data)(uint, uint);
 	void (*create_polygon_lists)(struct polygon_data *);
 	void (*free_polygon_data)(struct polygon_data *);
 	uint battle_sub_42A0E7;
@@ -1481,7 +1481,7 @@ struct ff7_externals
 	void (*battle_regular_chdir)(struct battle_chdir_struc *);
 	void (*battle_context_chdir)(struct file_context *, struct battle_chdir_struc *);
 	void (*swap_extension)(char *, char *, char *);
-	void (*destroy_battle_hrc)(bool, struct battle_hrc_header *);
+	void (*destroy_battle_hrc)(uint, struct battle_hrc_header *);
 	void (*battle_regular_olddir)(struct battle_chdir_struc *);
 	void (*battle_context_olddir)(struct file_context *, struct battle_chdir_struc *);
 	uint load_animation;
@@ -1500,8 +1500,8 @@ struct ff7_externals
 	FILE **lgp_fds;
 	uint battle_sub_437DB0;
 	uint sub_5CB2CC;
-	bool *midi_volume_control;
-	bool *midi_initialized;
+	uint *midi_volume_control;
+	uint *midi_initialized;
 	uint menu_sub_6CDA83;
 	uint menu_sub_6CBD43;
 	uint menu_sub_701EE4;
@@ -1576,7 +1576,7 @@ struct ff7_externals
 	uint cleanup_midi;
 };
 
-bool ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *hundred_data, struct p_group *group_data, struct polygon_data *polygon_data, struct ff7_polygon_set *polygon_set, struct ff7_game_obj *game_object);
+uint ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *hundred_data, struct p_group *group_data, struct polygon_data *polygon_data, struct ff7_polygon_set *polygon_set, struct ff7_game_obj *game_object);
 void ff7gl_field_78(struct ff7_polygon_set *polygon_set, struct ff7_game_obj *game_object);
 struct ff7_gfx_driver *ff7_load_driver(struct ff7_game_obj *game_object);
 void ff7_post_init();

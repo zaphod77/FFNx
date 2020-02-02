@@ -22,6 +22,10 @@
 
 #include <math.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../gl.h"
 #include "../cfg.h"
@@ -36,11 +40,11 @@
 // some way and should not be rendered normally
 // it is generally not safe to modify source data directly, a copy should be
 // made and rendered separately
-bool gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, bool clip, bool mipmap)
+uint gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vertices, uint vertexcount, word *indices, uint count, struct graphics_object *graphics_object, uint clip, uint mipmap)
 {
 	uint mode = getmode_cached()->driver_mode;
 	VOBJ(texture_set, texture_set, current_state.texture_set);
-	bool defer = false;
+	uint defer = false;
 
 	if(fancy_transparency && current_state.texture_set && current_state.blend_mode == BLEND_NONE)
 	{
@@ -83,8 +87,8 @@ bool gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 				double factor = (double)internal_size_x / (double)width;
 				double inv_factor = 0.5 / factor;
 				uint new_count = ((uint)(4 * factor)) * 2;
-				struct nvertex *_vertices = driver_malloc(new_count * sizeof(*_vertices));
-				word *_indices = driver_malloc(new_count * sizeof(*_indices));
+				struct nvertex *_vertices = (struct nvertex*)driver_malloc(new_count * sizeof(*_vertices));
+				word *_indices = (word*)driver_malloc(new_count * sizeof(*_indices));
 
 				for(j = 0; j < new_count; j += 2)
 				{
@@ -182,8 +186,8 @@ bool gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 			double factor = (double)internal_size_y / (double)height;
 			double inv_factor = 0.5 / factor;
 			uint new_count = ((uint)((vertexcount + 2) * factor)) * 2;
-			struct nvertex *_vertices = driver_malloc(new_count * sizeof(*_vertices));
-			word *_indices = driver_malloc(new_count * sizeof(*_indices));
+			struct nvertex *_vertices = (struct nvertex*)driver_malloc(new_count * sizeof(*_vertices));
+			word *_indices = (word*)driver_malloc(new_count * sizeof(*_indices));
 
 			for(i = 0; i < new_count; i += 2)
 			{
@@ -273,3 +277,7 @@ bool gl_special_case(GLenum primitivetype, uint vertextype, struct nvertex *vert
 
 	return false;
 }
+
+#if defined(__cplusplus)
+}
+#endif

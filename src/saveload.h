@@ -25,9 +25,9 @@
 
 #include "types.h"
 
-bool save_texture(void *data, uint width, uint height, uint palette_index, char *name);
+uint save_texture(void *data, uint width, uint height, uint palette_index, char *name);
 
-uint load_texture(char *name, uint palette_index, uint *width, uint *height, bool use_compression);
+uint load_texture(char *name, uint palette_index, uint *width, uint *height, uint use_compression);
 
 void ext_cache_access(struct texture_set *texture_set);
 void ext_cache_release(struct texture_set *texture_set);

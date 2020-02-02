@@ -16,7 +16,7 @@ void vgm_stop_music();
 void vgm_cross_fade_music(char* midi, uint id, int time);
 void vgm_pause_music();
 void vgm_resume_music();
-bool vgm_music_status();
+uint vgm_music_status();
 void vgm_set_master_music_volume(int volume);
 void vgm_set_music_volume(int volume);
 void vgm_set_music_volume_trans(int volume, int step);

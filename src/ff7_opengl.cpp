@@ -22,6 +22,10 @@
 
 #include "compile_cfg.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "cfg.h"
 #include "ff7.h"
@@ -38,11 +42,11 @@
 
 void ff7_read_basedir()
 {
-	uint basedir_length = sizeof(basedir);
+	DWORD basedir_length = sizeof(basedir);
 	HKEY ff7_regkey;
 
 	RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Square Soft, Inc.\\Final Fantasy VII", 0, KEY_QUERY_VALUE, &ff7_regkey);
-	RegQueryValueEx(ff7_regkey, "AppPath", 0, 0, basedir, &basedir_length);
+	RegQueryValueEx(ff7_regkey, "AppPath", 0, 0, (LPBYTE)basedir, &basedir_length);
 	basedir[sizeof(basedir) - 1] = 0;
 }
 
@@ -177,7 +181,7 @@ struct ff7_gfx_driver *ff7_load_driver(struct ff7_game_obj *game_object)
 	patch_code_byte(ff7_externals.coaster_sub_5EE150 + 0x16D, 5);
 	patch_code_byte(ff7_externals.coaster_sub_5EE150 + 0x190, 5);
 
-	ret = external_calloc(1, sizeof(*ret));
+	ret = (ff7_gfx_driver*)external_calloc(1, sizeof(*ret));
 
 	ret->init = common_init;
 	ret->cleanup = common_cleanup;
@@ -241,3 +245,7 @@ void ff7_post_init()
 	movie_init();
 	if(use_external_music) music_init();
 }
+
+#if defined(__cplusplus)
+}
+#endif

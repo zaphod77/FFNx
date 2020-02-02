@@ -40,7 +40,7 @@ extern uint x_offset;
 extern uint y_offset;
 extern uint output_size_x;
 extern uint output_size_y;
-extern bool indirect_rendering;
+extern uint indirect_rendering;
 
 extern struct texture_format *texture_format;
 
@@ -61,7 +61,7 @@ extern uint num_modes;
 
 extern uint text_colors[];
 
-extern bool ff8;
+extern uint ff8;
 
 extern uint frame_counter;
 

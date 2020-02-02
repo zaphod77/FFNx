@@ -22,6 +22,10 @@
 
 #include <gl/glew.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../log.h"
 #include "../gl.h"
@@ -49,7 +53,7 @@ GLuint gl_create_empty_texture()
 
 // create a simple texture from pixel data, if the size parameter is used it
 // will be treated as a compressed texture
-GLuint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, bool generate_mipmaps)
+GLuint gl_create_texture(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
 {
 	GLuint texture = gl_create_empty_texture();
 
@@ -74,7 +78,7 @@ GLuint gl_create_texture(void *data, uint width, uint height, uint format, uint 
 
 uint pbo_ring[PBO_RING_SIZE];
 uint pbo_index;
-bool commited;
+uint commited;
 
 void gl_init_pbo_ring()
 {
@@ -102,7 +106,7 @@ void *gl_get_pixel_buffer(uint size)
 	return ret;
 }
 
-GLuint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint format, uint internalformat, uint size, bool generate_mipmaps)
+GLuint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint format, uint internalformat, uint size, uint generate_mipmaps)
 {
 	uint ret;
 
@@ -126,7 +130,7 @@ GLuint gl_commit_pixel_buffer_generic(void *data, uint width, uint height, uint 
 	return ret;
 }
 
-GLuint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, bool generate_mipmaps)
+GLuint gl_commit_pixel_buffer(void *data, uint width, uint height, uint format, uint generate_mipmaps)
 {
 	return gl_commit_pixel_buffer_generic(data, width, height, format, GL_RGBA8, 0, generate_mipmaps);
 }
@@ -196,11 +200,11 @@ void gl_bind_texture_set(struct texture_set *_texture_set)
 		if(VREF(tex_header, version) == FB_TEX_VERSION) current_state.fb_texture = true;
 		else current_state.fb_texture = false;
 
-		ext_cache_access(VPTR(texture_set));
+		ext_cache_access(VPTRCAST(texture_set, texture_set));
 	}
 	else gl_set_texture(0);
 
-	current_state.texture_set = VPTR(texture_set);
+	current_state.texture_set = VPTRCAST(texture_set, texture_set);
 }
 
 // prepare an OpenGL texture for rendering, passing zero to this function will
@@ -222,3 +226,7 @@ void gl_set_texture(GLuint texture)
 	current_state.texture_handle = texture;
 	current_state.texture_set = 0;
 }
+
+#if defined(__cplusplus)
+}
+#endif

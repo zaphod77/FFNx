@@ -22,6 +22,10 @@
 
 #include <windows.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 
 uint replace_counter = 0;
@@ -29,7 +33,7 @@ uint replaced_functions[512 * 3];
 
 uint replace_function(uint offset, void *func)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -46,7 +50,7 @@ uint replace_function(uint offset, void *func)
 void unreplace_function(uint func)
 {
 	uint offset = replaced_functions[func + 2];
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
 	*(uint *)(offset + 1) = replaced_functions[func + 1];
@@ -58,7 +62,7 @@ void unreplace_functions()
 	while(replace_counter > 0)
 	{
 		uint offset = replaced_functions[--replace_counter];
-		uint dummy;
+		DWORD dummy;
 
 		VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
 		*(uint *)(offset + 1) = replaced_functions[--replace_counter];
@@ -68,7 +72,7 @@ void unreplace_functions()
 
 void replace_call(uint offset, void *func)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -87,7 +91,7 @@ uint get_absolute_value(uint base, uint offset)
 
 void patch_code_byte(uint offset, unsigned char r)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, sizeof(r), PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -96,7 +100,7 @@ void patch_code_byte(uint offset, unsigned char r)
 
 void patch_code_word(uint offset, word r)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, sizeof(r), PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -105,7 +109,7 @@ void patch_code_word(uint offset, word r)
 
 void patch_code_uint(uint offset, uint r)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, sizeof(r), PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -114,7 +118,7 @@ void patch_code_uint(uint offset, uint r)
 
 void patch_code_float(uint offset, float r)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, sizeof(r), PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -123,7 +127,7 @@ void patch_code_float(uint offset, float r)
 
 void patch_code_double(uint offset, double r)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, sizeof(r), PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -132,7 +136,7 @@ void patch_code_double(uint offset, double r)
 
 void memcpy_code(uint offset, void *data, uint size)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, size, PAGE_EXECUTE_READWRITE, &dummy);
 
@@ -141,9 +145,13 @@ void memcpy_code(uint offset, void *data, uint size)
 
 void memset_code(uint offset, uint val, uint size)
 {
-	uint dummy;
+	DWORD dummy;
 
 	VirtualProtect((void *)offset, size, PAGE_EXECUTE_READWRITE, &dummy);
 
 	memset((void *)offset, val, size);
 }
+
+#if defined(__cplusplus)
+}
+#endif

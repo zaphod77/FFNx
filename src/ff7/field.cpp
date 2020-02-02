@@ -20,6 +20,10 @@
  * ff7/field.c - replacement routines for FF7's field module
  */
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../common.h"
 #include "../ff7.h"
@@ -56,9 +60,9 @@ void field_load_textures_helper(struct ff7_game_obj *game_object, struct struc_3
 		memcpy(ff7_externals.field_layers[dst]->image_data, ff7_externals.field_layers[src]->image_data, 256 * 256);
 	}
 	
-	tex_header->image_data = ff7_externals.field_layers[dst]->image_data;
+	tex_header->image_data = (unsigned char*)ff7_externals.field_layers[dst]->image_data;
 
-	tex_header->file.pc_name = external_malloc(1024);
+	tex_header->file.pc_name = (char*)external_malloc(1024);
 	sprintf(tex_header->file.pc_name, "field/%s/%s_%02i", strchr(ff7_externals.field_file_name, '\\') + 1, strchr(ff7_externals.field_file_name, '\\') + 1, src);
 
 	ff7_externals.field_layers[dst]->graphics_object = ff7_externals._load_texture(1, PT_S2D, struc_3, 0, game_object->dx_sfx_something);
@@ -134,3 +138,7 @@ void field_layer2_pick_tiles(short x_offset, short y_offset)
 		ff7_externals.add_page_tile((float)x, (float)y, layer2_tiles[tile_index].z, layer2_tiles[tile_index].u, layer2_tiles[tile_index].v, layer2_tiles[tile_index].palette_index, page);
 	}
 }
+
+#if defined(__cplusplus)
+}
+#endif

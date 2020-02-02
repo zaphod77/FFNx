@@ -12,6 +12,7 @@
 #include <dsound.h>
 #include <dbghelp.h>
 
+#include "../crashdump.h"
 #include "../log.h"
 #include "../types.h"
 #include "../gl.h"
@@ -20,7 +21,7 @@ void ffmpeg_movie_init();
 void ffmpeg_release_movie_objects();
 uint ffmpeg_prepare_movie(char* name);
 void ffmpeg_stop_movie();
-bool ffmpeg_update_movie_sample();
+uint ffmpeg_update_movie_sample();
 void ffmpeg_draw_current_frame();
 void ffmpeg_loop();
 uint ffmpeg_get_movie_frame();

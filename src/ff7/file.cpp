@@ -22,6 +22,10 @@
 
 #include <sys/stat.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../common.h"
 #include "../ff7.h"
@@ -68,13 +72,13 @@ char lgp_names[18][256] = {
 
 struct lgp_file
 {
-	bool is_lgp_offset;
+	uint is_lgp_offset;
 	union
 	{
 		uint offset;
 		FILE *fd;
 	};
-	bool resolved_conflict;
+	uint resolved_conflict;
 };
 
 #define NUM_LGP_FILES 64
@@ -86,7 +90,7 @@ struct lgp_file *last;
 
 char lgp_current_dir[256];
 
-bool use_files_array = true;
+uint use_files_array = true;
 
 int lgp_lookup_value(unsigned char c)
 {
@@ -102,7 +106,7 @@ int lgp_lookup_value(unsigned char c)
 	return c - 'a';
 }
 
-bool lgp_chdir(char *path)
+uint lgp_chdir(char *path)
 {
 	uint len = strlen(path);
 
@@ -117,7 +121,7 @@ bool lgp_chdir(char *path)
 }
 
 // original LGP open file logic, unchanged except for the LGP Tools safety net
-bool original_lgp_open_file(char *filename, uint lgp_num, struct lgp_file *ret)
+uint original_lgp_open_file(char *filename, uint lgp_num, struct lgp_file *ret)
 {
 	uint lookup_value1 = lgp_lookup_value(filename[0]);
 	uint lookup_value2 = lgp_lookup_value(filename[1]) + 1;
@@ -197,7 +201,7 @@ bool original_lgp_open_file(char *filename, uint lgp_num, struct lgp_file *ret)
 // new LGP open file logic with modpath and direct mode support
 struct lgp_file *lgp_open_file(char *filename, uint lgp_num)
 {
-	struct lgp_file *ret = driver_calloc(sizeof(*ret), 1);
+	struct lgp_file *ret = (lgp_file*)driver_calloc(sizeof(*ret), 1);
 	char tmp[512 + sizeof(basedir)];
 	char _fname[_MAX_FNAME];
 	char *fname = _fname;
@@ -258,7 +262,7 @@ struct lgp_file *lgp_open_file(char *filename, uint lgp_num)
  */
 
 // seek to given offset in LGP file
-bool lgp_seek_file(uint offset, uint lgp_num)
+uint lgp_seek_file(uint offset, uint lgp_num)
 {
 	if(!ff7_externals.lgp_fds[lgp_num]) return false;
 
@@ -332,7 +336,7 @@ void close_file(struct ff7_file *file)
 struct ff7_file *open_file(struct file_context *file_context, char *filename)
 {
 	char mangled_name[200];
-	struct ff7_file *ret = driver_calloc(sizeof(*ret), 1);
+	struct ff7_file *ret = (ff7_file*)driver_calloc(sizeof(*ret), 1);
 	char *_filename = filename;
 
 	if(trace_files)
@@ -343,7 +347,7 @@ struct ff7_file *open_file(struct file_context *file_context, char *filename)
 
 	if(!ret) return 0;
 
-	ret->name = driver_malloc(strlen(filename) + 1);
+	ret->name = (char*)driver_malloc(strlen(filename) + 1);
 	strcpy(ret->name, filename);
 	memcpy(&ret->context, file_context, sizeof(*file_context));
 
@@ -377,7 +381,7 @@ struct ff7_file *open_file(struct file_context *file_context, char *filename)
 	}
 	else
 	{
-		ret->fd = driver_calloc(sizeof(*ret->fd), 1);
+		ret->fd = (lgp_file*)driver_calloc(sizeof(*ret->fd), 1);
 
 		if(ret->context.mode == FF7_FMODE_READ) ret->fd->fd = fopen(_filename, "rb");
 		else if(ret->context.mode == FF7_FMODE_READ_TEXT) ret->fd->fd = fopen(_filename, "r");
@@ -407,7 +411,7 @@ uint __read_file(uint count, void *buffer, struct ff7_file *file)
 
 	if(trace_files) trace("reading %i bytes from %s (ALT)\n", count, file->name);
 
-	if(file->context.use_lgp) return lgp_read(file->context.lgp_num, buffer, count);
+	if(file->context.use_lgp) return lgp_read(file->context.lgp_num, (char*)buffer, count);
 
 	ret = fread(buffer, 1, count, file->fd->fd);
 
@@ -421,7 +425,7 @@ uint __read_file(uint count, void *buffer, struct ff7_file *file)
 }
 
 // read from file handle, returns true if the read succeeds
-bool read_file(uint count, void *buffer, struct ff7_file *file)
+uint read_file(uint count, void *buffer, struct ff7_file *file)
 {
 	uint ret = 0;
 
@@ -429,7 +433,7 @@ bool read_file(uint count, void *buffer, struct ff7_file *file)
 
 	if(trace_files) trace("reading %i bytes from %s\n", count, file->name);
 
-	if(file->context.use_lgp) return lgp_read(file->context.lgp_num, buffer, count);
+	if(file->context.use_lgp) return lgp_read(file->context.lgp_num, (char*)buffer, count);
 
 	ret = fread(buffer, 1, count, file->fd->fd);
 
@@ -449,7 +453,7 @@ uint __read(FILE *file, char *buffer, uint count)
 }
 
 // write to file handle, returns true if the write succeeds
-bool write_file(uint count, void *buffer, struct ff7_file *file)
+uint write_file(uint count, void *buffer, struct ff7_file *file)
 {
 	uint ret = 0;
 	void *tmp = 0;
@@ -528,7 +532,7 @@ char *make_pc_name(struct file_context *file_context, struct ff7_file *file, cha
 {
 	uint i, len;
 	char *backslash;
-	char *ret = driver_malloc(1024);
+	char *ret = (char*)driver_malloc(1024);
 
 	if(file_context->use_lgp)
 	{
@@ -551,3 +555,7 @@ char *make_pc_name(struct file_context *file_context, struct ff7_file *file, cha
 
 	return ret;
 }
+
+#if defined(__cplusplus)
+}
+#endif

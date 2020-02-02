@@ -1,3 +1,7 @@
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "music.h"
 
 static CRITICAL_SECTION mutex;
@@ -13,7 +17,7 @@ static uint bytes_written;
 static uint bytespersample;
 static uint end_pos;
 
-static bool song_ended = true;
+static uint song_ended = true;
 
 static int trans_step;
 static int trans_counter;
@@ -41,11 +45,11 @@ void buffer_bytes(uint bytes)
 {
 	if(sound_buffer && bytes)
 	{
-		sample *ptr1;
-		sample *ptr2;
-		uint bytes1;
-		uint bytes2;
-		sample *buffer = malloc(bytes);
+		LPVOID ptr1;
+		LPVOID ptr2;
+		DWORD bytes1;
+		DWORD bytes2;
+		sample_t *buffer = (sample_t*)malloc(bytes);
 
 		if(vgmstream[current_id]->loop_flag) render_vgmstream(buffer, bytes / bytespersample, vgmstream[current_id]);
 		else
@@ -57,14 +61,14 @@ void buffer_bytes(uint bytes)
 			{
 				render_vgmstream(buffer, render_bytes / bytespersample, vgmstream[current_id]);
 
-				memset(&buffer[render_bytes / sizeof(sample)], 0, bytes - render_bytes);
+				memset(&buffer[render_bytes / sizeof(sample_t)], 0, bytes - render_bytes);
 			}
 		}
 
 		if(IDirectSoundBuffer_Lock(sound_buffer, write_pointer, bytes, &ptr1, &bytes1, &ptr2, &bytes2, 0)) error("couldn't lock sound buffer\n");
 
 		memcpy(ptr1, buffer, bytes1);
-		memcpy(ptr2, &buffer[bytes1 / sizeof(sample)], bytes2);
+		memcpy(ptr2, &buffer[bytes1 / sizeof(sample_t)], bytes2);
 
 		if(IDirectSoundBuffer_Unlock(sound_buffer, ptr1, bytes1, ptr2, bytes2)) error("couldn't unlock sound buffer\n");
 
@@ -133,7 +137,7 @@ void load_song(char *midi, uint id)
 		return;
 	}
 
-	bytespersample = vgmstream[id]->channels * sizeof(sample);
+	bytespersample = vgmstream[id]->channels * sizeof(sample_t);
 	write_pointer = 0;
 	bytes_written = 0;
 	song_ended = false;
@@ -149,17 +153,15 @@ void load_song(char *midi, uint id)
 	if(IDirectSoundBuffer_Play(sound_buffer, 0, 0, DSBPLAY_LOOPING)) error("couldn't play sound buffer\n");
 }
 
-struct IDirectSoundVtbl vtbl;
-
 ULONG (__stdcall *real_dsound_release)(IDirectSound *);
 
-ULONG __stdcall dsound_release_hook(IDirectSound *this)
+ULONG __stdcall dsound_release_hook(IDirectSound *me)
 {
 	trace("directsound release\n");
 
 	EnterCriticalSection(&mutex);
 
-	return real_dsound_release(this);
+	return real_dsound_release(me);
 }
 
 void render_thread(void *parameter)
@@ -172,16 +174,6 @@ void render_thread(void *parameter)
 
 		if(*common_externals.directsound)
 		{
-			if((*common_externals.directsound)->lpVtbl->Release != dsound_release_hook)
-			{
-				real_dsound_release = (*common_externals.directsound)->lpVtbl->Release;
-				memcpy(&vtbl, (*common_externals.directsound)->lpVtbl, sizeof(*((*common_externals.directsound)->lpVtbl)));
-
-				(*common_externals.directsound)->lpVtbl = &vtbl;
-
-				vtbl.Release = dsound_release_hook;
-			}
-
 			if(trans_counter > 0)
 			{
 				song_volume += trans_step;
@@ -221,7 +213,7 @@ void render_thread(void *parameter)
 
 			if(sound_buffer && *common_externals.directsound)
 			{
-				uint play_cursor;
+				DWORD play_cursor;
 				uint bytes_to_write = 0;
 
 				IDirectSoundBuffer_GetCurrentPosition(sound_buffer, &play_cursor, 0);
@@ -344,10 +336,10 @@ void vgm_resume_music()
 // it's important for some field scripts that this function returns true atleast once when a song has been requested
 // 
 // even if there's nothing to play because of errors/missing files you cannot return false every time
-bool vgm_music_status()
+uint vgm_music_status()
 {
-	static bool last_status;
-	bool status;
+	static uint last_status;
+	uint status;
 
 	EnterCriticalSection(&mutex);
 
@@ -433,3 +425,7 @@ void vgm_set_music_tempo(unsigned char tempo)
 
 	LeaveCriticalSection(&mutex);
 }
+
+#if defined(__cplusplus)
+}
+#endif

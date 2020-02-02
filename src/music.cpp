@@ -22,6 +22,10 @@
 
 #include <windows.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "music.h"
 #include "types.h"
 #include "globals.h"
@@ -50,7 +54,7 @@ void music_init()
 	}
 }
 
-bool midi_init(uint unknown)
+uint midi_init(uint unknown)
 {
 	// without this there will be no volume control for music in the config menu
 	*ff7_externals.midi_volume_control = true;
@@ -86,7 +90,7 @@ void stop_midi()
 	if(vgm_stop_music) vgm_stop_music();
 }
 
-bool midi_status()
+uint midi_status()
 {
 	return vgm_music_status();
 }
@@ -110,3 +114,7 @@ void set_midi_tempo(unsigned char tempo)
 {
 	vgm_set_music_tempo(tempo);
 }
+
+#if defined(__cplusplus)
+}
+#endif

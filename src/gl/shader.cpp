@@ -23,6 +23,10 @@
 #include <gl/glew.h>
 #include <sys/stat.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../log.h"
 
@@ -50,7 +54,7 @@ char *read_source(const char *file)
 	}
 
 	size = s.st_size;
-	buffer = driver_malloc(size + 1);
+	buffer = (char*)driver_malloc(size + 1);
 
 	f = fopen(filename, "r");
 
@@ -213,3 +217,7 @@ void gl_use_yuv_program()
 		glUniform1i(glGetUniformLocation(current_program, "v_tex"), 2);
 	}
 }
+
+#if defined(__cplusplus)
+}
+#endif

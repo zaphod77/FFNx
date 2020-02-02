@@ -20,6 +20,10 @@
  * ff7/battle.c - replacement routines for FF7's battle system
  */
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../common.h"
 #include "../ff7.h"
@@ -37,3 +41,7 @@ void magic_thread_start(void (*func)())
 	 */
 	func();
 }
+
+#if defined(__cplusplus)
+}
+#endif

@@ -42,7 +42,7 @@
  * Y - object name
  * Z - initial value
  */
-#define VOBJ(X,Y,Z) struct ff7_ ## X *ff7_ ## Y = ff8 ? 0 : (void *)(Z); struct ff8_ ## X *ff8_ ## Y = ff8 ? (void *)(Z) : 0
+#define VOBJ(X,Y,Z) struct ff7_ ## X *ff7_ ## Y = ff8 ? 0 : (struct ff7_ ## X *)(Z); struct ff8_ ## X *ff8_ ## Y = ff8 ? (struct ff8_ ## X *)(Z) : 0
 
 /*
  * VPTR - Access the raw pointer contained in an object.
@@ -50,12 +50,20 @@
  */
 #define VPTR(X) (ff8 ? (void *)ff8_ ## X : (void *)ff7_ ## X)
 
+ /*
+  * VPTRCAST - Access the raw pointer contained in an object, casting to a defined type
+  * T - object type
+  * X - object
+  */
+#define VPTRCAST(T, X) (ff8 ? (struct T *)ff8_ ## X : (struct T *)ff7_ ## X)
+
 /*
  * VASS - Assign a new pointer to an object.
+ * T - object type
  * X - object
  * Y - new value
  */
-#define VASS(X,Y) { if(ff8) ff8_ ## X = (void *)(Y); else ff7_ ## X = (void *)(Y); }
+#define VASS(T,X,Y) { if(ff8) ff8_ ## X = (struct ff8_ ## T *)(Y); else ff7_ ## X = (struct ff7_ ## T *)(Y); }
 
 /*
  * VREF - Retrieve the value of a member of an object.
@@ -80,10 +88,11 @@
 
 /*
  * UNSAFE_VREF - Retrieve the value of a member of an object WITHOUT type safety.
+ * T - object type
  * X - object
  * Y - member name (types can be different in the different versions)
  */
-#define UNSAFE_VREF(X,Y) (ff8 ? (void *)ff8_ ## X->Y : (void *)ff7_ ## X->Y)
+#define UNSAFE_VREF(T,X,Y) (ff8 ? (struct T *)ff8_ ## X->Y : (struct T *)ff7_ ## X->Y)
 
 // convert a coordinate from game coordinates to internal rendering coordinates
 #define INT_COORD_X(X) (((X) * internal_size_x) / width)

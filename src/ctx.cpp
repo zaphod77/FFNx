@@ -24,6 +24,10 @@
 #include <gl/glew.h>
 #include <direct.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "gl.h"
 #include "cfg.h"
@@ -42,7 +46,7 @@ struct ctx_header
 };
 
 // save a compressed texture to disk
-bool write_ctx(char *filename, uint width, uint height, uint texture)
+uint write_ctx(char *filename, uint width, uint height, uint texture)
 {
 	FILE *f;
 	struct ctx_header header;
@@ -91,7 +95,7 @@ bool write_ctx(char *filename, uint width, uint height, uint texture)
 
 	fwrite(&header, sizeof(header), 1, f);
 
-	data = driver_malloc(header.size);
+	data = (char*)driver_malloc(header.size);
 
 	glGetCompressedTexImageARB(GL_TEXTURE_2D, 0, data);
 
@@ -122,7 +126,7 @@ uint read_ctx(char *filename, uint *width, uint *height)
 
 	fread(&header, sizeof(header), 1, f);
 
-	data = gl_get_pixel_buffer(header.size);
+	data = (char*)gl_get_pixel_buffer(header.size);
 
 	fread(data, header.size, 1, f);
 
@@ -143,3 +147,7 @@ uint read_ctx(char *filename, uint *width, uint *height)
 
 	return texture;
 }
+
+#if defined(__cplusplus)
+}
+#endif

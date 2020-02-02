@@ -22,6 +22,10 @@
 
 #include <stdint.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../ff7.h"
 #include "../common.h"
@@ -80,7 +84,7 @@ void kernel2_reset_counters()
 
 char *kernel2_add_section(uint size)
 {
-	char *ret = driver_malloc(size);
+	char *ret = (char*)driver_malloc(size);
 
 	if(trace_all) trace("kernel2 add section %i (%i)\n", kernel2_section_counter, size);
 
@@ -97,3 +101,7 @@ char *kernel2_get_text(uint section_base, uint string_id, uint section_offset)
 	
 	return &section[((word *)section)[string_id]];
 }
+
+#if defined(__cplusplus)
+}
+#endif

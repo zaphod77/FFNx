@@ -208,7 +208,7 @@ struct ff8_graphics_object
 	struct ff8_indexed_vertices *indexed_vertices;
 	gfx_polysetrenderstate *func_90;
 	gfx_draw_vertices *func_94;
-	bool use_matrix_pointer;
+	uint use_matrix_pointer;
 	struct matrix *matrix_pointer;
 	struct matrix matrix;
 };
@@ -225,7 +225,7 @@ struct ff8_polygon_set
 	uint field_2C;
 	struct polygon_data *polygon_data;
 	struct p_hundred *hundred_data;
-	bool per_group_hundreds;
+	uint per_group_hundreds;
 	struct p_hundred **hundred_data_group_array;
 	struct matrix_set *matrix_set;
 	uint field_44;
@@ -311,7 +311,7 @@ struct ff8_texture_set
 
 		struct
 		{
-			bool external;
+			uint external;
 			struct gl_texture_set *gl_set;
 			uint width;
 			uint height;
@@ -430,8 +430,8 @@ struct ff8_movie_obj
 	uint movie_surface_y;
 	void *movie_dd_surface;
 	struct ff8_game_obj *movie_game_object;
-	bool movie_intro_pak;
-	bool movie_is_playing;
+	uint movie_intro_pak;
+	uint movie_is_playing;
 	uint field_4C4AC;
 	uint field_4C4B0;
 	uint field_4C4B4;
@@ -474,7 +474,7 @@ struct ff8_game_obj
 	DDSURFACEDESC front_surface_desc[3];
 	uint field_1CC;
 	uint field_1D0;
-	IDirectDrawClipper dd_clipper;
+	IDirectDrawClipper* dd_clipper;
 	uint field_1D8;
 	DDSURFACEDESC d3d_surfacedesc;
 	void *dd_interface;
@@ -519,7 +519,7 @@ struct ff8_game_obj
 	uint in_scene;
 	struct p_hundred *hundred_array[5];
 	void *applog_debug1;
-	bool applog_debug2;
+	uint applog_debug2;
 	void *dxdbg_file;
 	uint field_840;
 	uint field_844;
@@ -567,7 +567,7 @@ struct ff8_game_obj
 	uint field_960;
 	uint field_964;
 	uint field_968;
-	bool no_hardware;
+	uint no_hardware;
 	uint field_970;
 	uint field_974;
 	uint colorkey;
@@ -625,9 +625,9 @@ struct ff8_game_obj
 	uint field_BE0;
 	uint field_BE4;
 	uint field_BE8;
-	bool no_8bit_textures;
+	uint no_8bit_textures;
 	uint field_BF0;
-	bool tnt_fix;
+	uint tnt_fix;
 	uint field_BF8;
 	uint field_BFC;
 	uint field_C00;
@@ -789,14 +789,14 @@ struct ff8_externals
 	uint sub_469640;
 	uint sub_46DBF0;
 	void (*sub_5304B0)();
-	bool *enable_framelimiter;
+	uint *enable_framelimiter;
 	unsigned char *byte_1CE4907;
 	unsigned char *byte_1CE4901;
 	unsigned char *byte_1CE490D;
 	uint sub_45B310;
 	uint sub_45B460;
 	uint ssigpu_init;
-	bool *d3dcaps;
+	uint *d3dcaps;
 	uint sub_53BB90;
 	uint sub_53C750;
 	uint sub_544630;

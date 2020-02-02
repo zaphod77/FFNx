@@ -23,6 +23,10 @@
 #include <gl/glew.h>
 #include <math.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "../types.h"
 #include "../common.h"
 #include "../ff7.h"
@@ -47,7 +51,7 @@ void destroy_d3d2_indexed_primitive(struct indexed_primitive *ip)
 	driver_free(ip);
 }
 
-bool ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *_hundred_data, struct p_group *_group_data, struct polygon_data *polygon_data, struct ff7_polygon_set *polygon_set, struct ff7_game_obj *game_object)
+uint ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *_hundred_data, struct p_group *_group_data, struct polygon_data *polygon_data, struct ff7_polygon_set *polygon_set, struct ff7_game_obj *game_object)
 {
 	struct indexed_primitive *ip;
 	struct p_hundred *hundred_data;
@@ -63,7 +67,7 @@ bool ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hu
 	if(!polygon_set->indexed_primitives) return false;
 	if(group_num >= polygon_data->numgroups) return false;
 
-	ip = driver_calloc(sizeof(*ip), 1);
+	ip = (indexed_primitive*)driver_calloc(sizeof(*ip), 1);
 
 	ip->primitivetype = GL_TRIANGLES;
 	ip->vertex_size = sizeof(struct nvertex);
@@ -78,8 +82,8 @@ bool ff7gl_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hu
 
 	ip->vertexcount = numvert;
 	ip->indexcount = numpoly * 3;
-	ip->vertices = driver_calloc(sizeof(*ip->vertices), ip->vertexcount);
-	ip->indices = driver_calloc(sizeof(*ip->indices), ip->indexcount);
+	ip->vertices = (nvertex*)driver_calloc(sizeof(*ip->vertices), ip->vertexcount);
+	ip->indices = (word*)driver_calloc(sizeof(*ip->indices), ip->indexcount);
 
 	if(polygon_data->vertextype == 0) ip->vertextype = VERTEX;
 	else if(polygon_data->vertextype == 1) ip->vertextype = LVERTEX;
@@ -125,11 +129,11 @@ void ff7gl_field_78(struct ff7_polygon_set *polygon_set, struct ff7_game_obj *ga
 	struct struc_186 *struc_186;
 	uint instance_type = -1;
 	uint group_counter = 0;
-	bool instanced = false;
-	bool correct_frame = false;
+	uint instanced = false;
+	uint correct_frame = false;
 	uint instance_transform_mode;
 	struct matrix tmp_matrix;
-	bool trace_field_78 = false;
+	uint trace_field_78 = false;
 	struct matrix *model_matrix = 0;
 
 	if(trace_all) trace("dll_gfx: field_78 0x%x\n", polygon_set);
@@ -167,8 +171,8 @@ void ff7gl_field_78(struct ff7_polygon_set *polygon_set, struct ff7_game_obj *ga
 
 	while(group_counter < polygon_set->numgroups)
 	{
-		bool defer = false;
-		bool zsort = false;
+		uint defer = false;
+		uint zsort = false;
 
 		struc_84 = struc_49->struc_84;
 
@@ -219,7 +223,7 @@ void ff7gl_field_78(struct ff7_polygon_set *polygon_set, struct ff7_game_obj *ga
 					}
 					else if(defer)
 					{
-						struc_77 = ff7_externals.sub_6A2865(game_object->_3dobject_pool);
+						struc_77 = (struct struc_77*)ff7_externals.sub_6A2865(game_object->_3dobject_pool);
 
 						if(struc_77)
 						{
@@ -305,7 +309,7 @@ void ff7gl_field_78(struct ff7_polygon_set *polygon_set, struct ff7_game_obj *ga
 
 			if(defer)
 			{
-				struc_77 = ff7_externals.sub_6A2865(game_object->_3dobject_pool);
+				struc_77 = (struct struc_77*)ff7_externals.sub_6A2865(game_object->_3dobject_pool);
 
 				struc_77->current_group = group_counter;
 				struc_77->polygon_set = (struct polygon_set *)polygon_set;
@@ -388,7 +392,7 @@ void draw_3d_model(uint current_frame, struct anim_header *anim_header, struct s
 
 	ff7_externals.stack_push(matrix_stack);
 
-	root_matrix = ff7_externals.stack_top(matrix_stack);
+	root_matrix = (matrix*)ff7_externals.stack_top(matrix_stack);
 
 	if(hrc_data->field_A4 && *hrc_data->field_A4)
 	{
@@ -471,9 +475,9 @@ void draw_3d_model(uint current_frame, struct anim_header *anim_header, struct s
 				struct matrix *matrix;
 				struct point3d dummy_point = {0.0f, 0.0f, 0.0f};
 
-				parent_matrix = ff7_externals.stack_top(matrix_stack);
+				parent_matrix = (struct matrix*)ff7_externals.stack_top(matrix_stack);
 				ff7_externals.stack_push(matrix_stack);
-				bone_matrix = ff7_externals.stack_top(matrix_stack);
+				bone_matrix = (struct matrix*)ff7_externals.stack_top(matrix_stack);
 
 				if(anim_header->num_bones <= bone_index) frame_rotation = &dummy_point;
 				else frame_rotation = &anim_frame->data[bone_index];
@@ -519,7 +523,7 @@ void draw_3d_model(uint current_frame, struct anim_header *anim_header, struct s
 						if(!polygon_set) continue;
 
 						common_setmatrix(0, matrix, polygon_set->matrix_set, (struct game_obj *)game_object);
-						if(polygon_set->matrix_set) polygon_set->matrix_set->matrix_view = external_calloc(sizeof(struct matrix), 1);
+						if(polygon_set->matrix_set) polygon_set->matrix_set->matrix_view = (struct matrix*)external_calloc(sizeof(struct matrix), 1);
 						common_setmatrix(1, bone_matrix, polygon_set->matrix_set, (struct game_obj *)game_object);
 
 						if(hrc_data->flags & 0x2000000)
@@ -555,3 +559,7 @@ void draw_3d_model(uint current_frame, struct anim_header *anim_header, struct s
 
 	ff7_externals.stack_pop(matrix_stack);
 }
+
+#if defined(__cplusplus)
+}
+#endif

@@ -23,6 +23,10 @@
 #include <windows.h>
 #include <stdio.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "gl.h"
 #include "movies.h"
@@ -58,7 +62,7 @@ void movie_init()
 	ffmpeg_movie_init();
 }
 
-bool ff7_prepare_movie(char *name, uint loop, struct dddevice **dddevice, uint dd2interface)
+uint ff7_prepare_movie(char *name, uint loop, struct dddevice **dddevice, uint dd2interface)
 {
 	if(trace_all || trace_movies) trace("prepare_movie %s\n", name);
 
@@ -89,7 +93,7 @@ void ff7_release_movie_objects()
 	ff7_externals.movie_object->global_movie_flag = 0;
 }
 
-bool ff7_start_movie()
+uint ff7_start_movie()
 {
 	if(trace_all || trace_movies) trace("start_movie\n");
 
@@ -100,7 +104,7 @@ bool ff7_start_movie()
 	return ff7_update_movie_sample(0);
 }
 
-bool ff7_stop_movie()
+uint ff7_stop_movie()
 {
 	if(trace_all || trace_movies) trace("stop_movie\n");
 
@@ -115,9 +119,9 @@ bool ff7_stop_movie()
 	return true;
 }
 
-bool ff7_update_movie_sample(LPDIRECTDRAWSURFACE surface)
+uint ff7_update_movie_sample(LPDIRECTDRAWSURFACE surface)
 {
-	bool movie_end;
+	uint movie_end;
 
 	ff7_externals.movie_object->movie_end = 0;
 
@@ -156,7 +160,7 @@ uint ff7_get_movie_frame()
 
 uint ff8_movie_frames;
 
-void ff8_prepare_movie(unsigned char disc, unsigned char movie)
+void ff8_prepare_movie(uint disc, uint movie)
 {
 	char fmvName[512];
 	char camName[512];
@@ -288,3 +292,7 @@ uint ff8_get_movie_frame()
 
 	return ff8_externals.movie_object->movie_frame;
 }
+
+#if defined(__cplusplus)
+}
+#endif

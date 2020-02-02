@@ -24,6 +24,10 @@
 #include <windows.h>
 #include <gl/gl.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "globals.h"
 #include "log.h"
@@ -138,7 +142,7 @@ void external_debug_print2(const char *fmt, ...)
 
 #define POPUP_LOG_LENGTH 128
 
-void debug_printf(const char *prefix, bool popup, uint color, const char *fmt, ...)
+void debug_printf(const char *prefix, uint popup, uint color, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_str[1024];
@@ -216,3 +220,7 @@ void gl_error()
 		ret = glGetError();
 	}
 }
+
+#if defined(__cplusplus)
+}
+#endif

@@ -23,6 +23,10 @@
 #include <string.h>
 #include <math.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "matrix.h"
 #include "math.h"
 #include "log.h"
@@ -263,3 +267,7 @@ void inverse_matrix(struct matrix *matrix, struct matrix *dest)
 	}
 	else glitch_once("Non-uniform scaling: %f\n", det);
 }
+
+#if defined(__cplusplus)
+}
+#endif

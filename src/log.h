@@ -28,8 +28,8 @@
 #include "common.h"
 #include "globals.h"
 
-#define glitch_once(x, ...) { static bool glitch_ ## __LINE__ = false; if(!glitch_ ## __LINE__) { glitch(x, __VA_ARGS__); glitch_ ## __LINE__ = true; } }
-#define unexpected_once(x, ...) { static bool unexpected_ ## __LINE__ = false; if(!unexpected_ ## __LINE__) { unexpected(x, __VA_ARGS__); unexpected_ ## __LINE__ = true; } }
+#define glitch_once(x, ...) { static uint glitch_ ## __LINE__ = false; if(!glitch_ ## __LINE__) { glitch(x, __VA_ARGS__); glitch_ ## __LINE__ = true; } }
+#define unexpected_once(x, ...) { static uint unexpected_ ## __LINE__ = false; if(!unexpected_ ## __LINE__) { unexpected(x, __VA_ARGS__); unexpected_ ## __LINE__ = true; } }
 
 #define error(x, ...) debug_printf("ERROR", true, text_colors[TEXTCOLOR_RED], (x), __VA_ARGS__)
 #define info(x, ...) debug_printf("INFO", info_popup, text_colors[TEXTCOLOR_WHITE], (x), __VA_ARGS__)
@@ -48,7 +48,7 @@ void plugin_error(const char *fmt, ...);
 void external_debug_print(const char *str);
 void external_debug_print2(const char *fmt, ...);
 
-void debug_printf(const char *, bool, uint, const char *, ...);
+void debug_printf(const char *, uint, uint, const char *, ...);
 
 void windows_error(uint error);
 void gl_error();

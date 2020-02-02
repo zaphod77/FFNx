@@ -62,22 +62,22 @@ enum effects
 };
 
 // helper definitions for all the different functions which should be provided by the graphics driver
-typedef bool (gfx_init)(struct game_obj *);
+typedef uint (gfx_init)(struct game_obj *);
 typedef void (gfx_cleanup)(struct game_obj *);
-typedef bool (gfx_lock)(uint);
-typedef bool (gfx_unlock)(uint);
+typedef uint (gfx_lock)(uint);
+typedef uint (gfx_unlock)(uint);
 typedef void (gfx_flip)(struct game_obj *);
-typedef void (gfx_clear)(bool, bool, bool, struct game_obj *);
+typedef void (gfx_clear)(uint, uint, uint, struct game_obj *);
 typedef void (gfx_clear_all)(struct game_obj *);
 typedef void (gfx_setviewport)(uint, uint, uint, uint, struct game_obj *);
 typedef void (gfx_setbg)(struct bgra_color *, struct game_obj *);
-typedef bool (gfx_prepare_polygon_set)(struct polygon_set *);
-typedef bool (gfx_load_group)(uint, struct matrix_set *, struct p_hundred *, struct p_group *, struct polygon_data *, struct polygon_set *, struct game_obj *);
+typedef uint (gfx_prepare_polygon_set)(struct polygon_set *);
+typedef uint (gfx_load_group)(uint, struct matrix_set *, struct p_hundred *, struct p_group *, struct polygon_data *, struct polygon_set *, struct game_obj *);
 typedef void (gfx_setmatrix)(uint, struct matrix *, struct matrix_set *, struct game_obj *);
 typedef void (gfx_unload_texture)(struct texture_set *);
 typedef struct texture_set *(gfx_load_texture)(struct texture_set *, struct tex_header *, struct texture_format *);
-typedef bool (gfx_palette_changed)(uint, uint, uint, struct palette *, struct texture_set *);
-typedef bool (gfx_write_palette)(uint, uint, void *, uint, struct palette *, struct texture_set *);
+typedef uint (gfx_palette_changed)(uint, uint, uint, struct palette *, struct texture_set *);
+typedef uint (gfx_write_palette)(uint, uint, void *, uint, struct palette *, struct texture_set *);
 typedef struct blend_mode *(gfx_blendmode)(uint, struct game_obj *);
 typedef void (gfx_light_polygon_set)(struct polygon_set *, void *);
 typedef void (gfx_field_64)(uint, uint, struct game_obj *);
@@ -87,7 +87,7 @@ typedef void (gfx_field_78)(struct polygon_set *, struct game_obj *);
 typedef void (gfx_draw_deferred)(struct struc_77 *, struct game_obj *);
 typedef void (gfx_field_80)(struct graphics_object *, struct game_obj *);
 typedef void (gfx_field_84)(uint, struct game_obj *);
-typedef bool (gfx_begin_scene)(uint, struct game_obj *);
+typedef uint (gfx_begin_scene)(uint, struct game_obj *);
 typedef void (gfx_end_scene)(struct game_obj *);
 typedef void (gfx_field_90)(uint);
 typedef void (gfx_polysetrenderstate)(struct polygon_set *, struct indexed_vertices *, struct game_obj *);
@@ -151,9 +151,9 @@ struct struc_77
 	uint current_group;
 	struct polygon_set *polygon_set;
 	struct p_hundred *hundred_data;
-	bool use_matrix;
+	uint use_matrix;
 	struct matrix matrix;
-	bool use_matrix_pointer;
+	uint use_matrix_pointer;
 	struct matrix *matrix_pointer;
 	struct struc_173 struc_173;
 };
@@ -228,7 +228,7 @@ struct p_group
 	uint field_24;
 	uint field_28;
 	uint offtex;
-	bool textured;
+	uint textured;
 	uint texid;
 };
 
@@ -351,7 +351,7 @@ struct polygon_data
 	uint numhundreds;
 	uint numgroups;
 	uint numboundingboxes;
-	bool has_normindextable;
+	uint has_normindextable;
 	struct point3d *vertdata;
 	struct point3d *normaldata;
 	struct point3d *field_48;
@@ -405,7 +405,7 @@ struct texture_format
 	uint height;
 	uint bytesperrow;
 	void *field_C;
-	bool use_palette;
+	uint use_palette;
 	uint bitsperindex;
 	uint indexed_to_8bit;
 	uint palette_size;				// ?

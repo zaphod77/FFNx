@@ -20,6 +20,10 @@
  * ff8_opengl.c - FF8 specific code and loading routine
  */
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "globals.h"
 #include "common.h"
@@ -59,8 +63,8 @@ void ff8gl_field_78(struct ff8_polygon_set *polygon_set, struct ff8_game_obj *ga
 
 	while(group_counter < polygon_set->numgroups)
 	{
-		bool defer = false;
-		bool zsort = false;
+		uint defer = false;
+		uint zsort = false;
 
 		if(polygon_set->per_group_hundreds) hundred_data = polygon_set->hundred_data_group_array[group_counter];
 
@@ -125,7 +129,7 @@ void ff8_destroy_tex_header(struct ff8_tex_header *tex_header)
 }
 
 struct ff8_file *(*ff8_open_file)(struct file_context *file_context, char *filename);
-bool (*ff8_read_file)(uint count, void *buffer, struct ff8_file *file);
+uint (*ff8_read_file)(uint count, void *buffer, struct ff8_file *file);
 void (*ff8_close_file)(struct ff8_file *file);
 
 struct ff8_tex_header *ff8_load_tex_file(struct file_context *file_context, char *filename)
@@ -147,21 +151,21 @@ struct ff8_tex_header *ff8_load_tex_file(struct file_context *file_context, char
 	{
 		if(ret->tex_format.use_palette)
 		{
-			ret->tex_format.palette_data = common_externals.alloc_read_file(4, ret->tex_format.palette_size, (struct file *)file);
+			ret->tex_format.palette_data = (uint*)common_externals.alloc_read_file(4, ret->tex_format.palette_size, (struct file *)file);
 			if(!ret->tex_format.palette_data) goto error;
 		}
 
-		ret->image_data = common_externals.alloc_read_file(ret->tex_format.bytesperpixel, ret->tex_format.width * ret->tex_format.height, (struct file *)file);
+		ret->image_data = (unsigned char*)common_externals.alloc_read_file(ret->tex_format.bytesperpixel, ret->tex_format.width * ret->tex_format.height, (struct file *)file);
 		if(!ret->image_data) goto error;
 
 		if(ret->use_palette_colorkey)
 		{
-			ret->palette_colorkey = common_externals.alloc_read_file(1, ret->palettes, (struct file *)file);
+			ret->palette_colorkey = (char*)common_externals.alloc_read_file(1, ret->palettes, (struct file *)file);
 			if(!ret->palette_colorkey) goto error;
 		}
 	}
 
-	ret->file.pc_name = driver_malloc(1024);
+	ret->file.pc_name = (char*)driver_malloc(1024);
 
 	len = _snprintf(ret->file.pc_name, 1024, "%s", &filename[7]);
 
@@ -225,7 +229,7 @@ void texture_reload_hack(struct ff8_texture_set *texture_set)
 
 	reload_buffer[reload_buffer_index].texture_set = texture_set;
 	driver_free(reload_buffer[reload_buffer_index].image_data);
-	reload_buffer[reload_buffer_index].image_data = driver_malloc(size);
+	reload_buffer[reload_buffer_index].image_data = (char*)driver_malloc(size);
 	memcpy(reload_buffer[reload_buffer_index].image_data, VREF(tex_header, image_data), size);
 	reload_buffer[reload_buffer_index].size = size;
 	reload_buffer_index = (reload_buffer_index + 1) % TEXRELOAD_BUFFER_SIZE;
@@ -274,11 +278,11 @@ void swirl_sub_56D390(uint x, uint y, uint w, uint h)
 
 void ff8_read_basedir()
 {
-	uint basedir_length = sizeof(basedir);
+	DWORD basedir_length = sizeof(basedir);
 	HKEY ff8_regkey;
 
 	RegOpenKeyEx(HKEY_LOCAL_MACHINE, "SOFTWARE\\Square Soft, Inc\\Final Fantasy VIII\\1.00", 0, KEY_QUERY_VALUE, &ff8_regkey);
-	RegQueryValueEx(ff8_regkey, "AppPath", 0, 0, basedir, &basedir_length);
+	RegQueryValueEx(ff8_regkey, "AppPath", 0, 0, (LPBYTE)basedir, &basedir_length);
 	basedir[sizeof(basedir) - 1] = 0;
 }
 
@@ -312,9 +316,9 @@ struct ff8_gfx_driver *ff8_load_driver(struct ff8_game_obj *game_object)
 	replace_function(common_externals.destroy_tex_header, ff8_destroy_tex_header);
 	replace_function(common_externals.load_tex_file, ff8_load_tex_file);
 
-	ff8_open_file = (void *)common_externals.open_file;
-	ff8_read_file = (void *)common_externals.read_file;
-	ff8_close_file = (void *)common_externals.close_file;
+	ff8_open_file = (ff8_file* (*)(file_context*, char*))common_externals.open_file;
+	ff8_read_file = (uint (*)(uint, void*, ff8_file*))common_externals.read_file;
+	ff8_close_file = (void (*)(ff8_file*))common_externals.close_file;
 
 	memset_code(ff8_externals.movie_hack1, 0x90, 14);
 	memset_code(ff8_externals.movie_hack2, 0x90, 8);
@@ -383,7 +387,7 @@ struct ff8_gfx_driver *ff8_load_driver(struct ff8_game_obj *game_object)
 	memset_code(ff8_externals.dinput_sub_4692B0 + 0x2B, 0x90, 7);
 	memset_code(ff8_externals.dinput_sub_4692B0 + 0x60, 0x90, 7);
 
-	ret = external_calloc(1, sizeof(*ret));
+	ret = (ff8_gfx_driver*)external_calloc(1, sizeof(*ret));
 
 	ret->init = common_init;
 	ret->cleanup = common_cleanup;
@@ -452,3 +456,7 @@ void ff8_post_init()
 {
 	if(use_external_movie) movie_init();
 }
+
+#if defined(__cplusplus)
+}
+#endif

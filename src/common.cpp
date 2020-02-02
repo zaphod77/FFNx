@@ -27,6 +27,10 @@
 #include <gl/wglew.h>
 #include <sys/timeb.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include "types.h"
 #include "log.h"
 #include "crashdump.h"
@@ -42,7 +46,7 @@
 #include "matrix.h"
 
 // global FF7/FF8 flag, available after version check
-bool ff8 = false;
+uint ff8 = false;
 
 // window dimensions requested by the game, normally 640x480
 uint width;
@@ -58,7 +62,7 @@ uint output_size_y;
 
 // global indirect rendering flag, false if we are rendering directly to the
 // output window
-bool indirect_rendering = false;
+uint indirect_rendering = false;
 
 // device context & window handles
 HDC hDC = 0;
@@ -269,7 +273,7 @@ struct game_mode *getmode_cached()
 // called by the game before rendering starts, after the driver object has been
 // created, we use this opportunity to initialize our default OpenGL render
 // state
-bool common_init(struct game_obj *game_object)
+uint common_init(struct game_obj *game_object)
 {
 	if(trace_all) trace("dll_gfx: init\n");
 
@@ -314,13 +318,13 @@ void common_cleanup(struct game_obj *game_object)
 
 	if(!ff8) ff7_release_movie_objects();
 
-	unreplace_functions();
-
 	if(use_external_music) stop_midi();
+
+	unreplace_functions();
 }
 
 // unused and unnecessary
-bool common_lock(uint surface)
+uint common_lock(uint surface)
 {
 	if(trace_all) trace("dll_gfx: lock %i\n", surface);
 
@@ -328,7 +332,7 @@ bool common_lock(uint surface)
 }
 
 // unused and unnecessary
-bool common_unlock(uint surface)
+uint common_unlock(uint surface)
 {
 	if(trace_all) trace("dll_gfx: unlock %i\n", surface);
 
@@ -512,7 +516,7 @@ void common_flip(struct game_obj *game_object)
 
 // called by the game to clear an aspect of the back buffer, mostly called from
 // clear_all below
-void common_clear(bool clear_color, bool clear_depth, bool unknown, struct game_obj *game_object)
+void common_clear(uint clear_color, uint clear_depth, uint unknown, struct game_obj *game_object)
 {
 	uint mode = getmode()->driver_mode;
 	GLbitfield mask = 0;
@@ -580,17 +584,17 @@ void common_setbg(struct bgra_color *color, struct game_obj *game_object)
 
 // called by the game to initialize a polygon_set structure
 // we don't really need to do anything special here
-bool common_prepare_polygon_set(struct polygon_set *polygon_set)
+uint common_prepare_polygon_set(struct polygon_set *polygon_set)
 {
 	VOBJ(polygon_set, polygon_set, polygon_set);
 
-	if(VPTR(polygon_set)) VRASS(polygon_set, indexed_primitives, external_calloc(VREF(polygon_set, numgroups), 4));
+	if(VPTR(polygon_set)) VRASS(polygon_set, indexed_primitives, (indexed_primitive**)external_calloc(VREF(polygon_set, numgroups), 4));
 
 	return true;
 }
 
 // called by the game to load a group from a .p file into a renderable format
-bool common_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *hundred_data, struct p_group *group_data, struct polygon_data *polygon_data, struct polygon_set *polygon_set, struct game_obj *game_object)
+uint common_load_group(uint group_num, struct matrix_set *matrix_set, struct p_hundred *hundred_data, struct p_group *group_data, struct polygon_data *polygon_data, struct polygon_set *polygon_set, struct game_obj *game_object)
 {
 	if(!ff8) return ff7gl_load_group(group_num, matrix_set, hundred_data, group_data, polygon_data, (struct ff7_polygon_set *)polygon_set, (struct ff7_game_obj *)game_object);
 	else return common_externals.generic_load_group(group_num, matrix_set, hundred_data, group_data, polygon_data, polygon_set, game_object);
@@ -636,7 +640,7 @@ void common_unload_texture(struct texture_set *texture_set)
 	if(!VREF(texture_set, ogl.external)) glDeleteTextures(VREF(texture_set, ogl.gl_set->textures), VREF(texture_set, texturehandle));
 
 	// remove modpath cache reference
-	ext_cache_release(VPTR(texture_set));
+	ext_cache_release(VPTRCAST(texture_set, texture_set));
 
 	driver_free(VREF(texture_set, texturehandle));
 	driver_free(VREF(texture_set, ogl.gl_set));
@@ -649,7 +653,7 @@ void common_unload_texture(struct texture_set *texture_set)
 	if(VREF(texture_set, ogl.external)) stats.external_textures--;
 
 	// remove any other references to this texture
-	gl_check_deferred(VPTR(texture_set));
+	gl_check_deferred(VPTRCAST(texture_set, texture_set));
 
 	for(i = 0; i < scene_stack_pointer; i++)
 	{
@@ -658,13 +662,13 @@ void common_unload_texture(struct texture_set *texture_set)
 
 	if(current_state.texture_set == VPTR(texture_set)) current_state.texture_set = 0;
 
-	if(ff8) ff8_unload_texture(VPTR(texture_set));
+	if(ff8) ff8_unload_texture(VPTRCAST(ff8_texture_set, texture_set));
 }
 
 // create a texture from an area of the framebuffer, source rectangle is encoded into tex header
 // with our fictional version FB_TEXT_VERSION
 // return true to short-circuit texture loader
-bool load_framebuffer_texture(struct texture_set *texture_set, struct tex_header *tex_header)
+uint load_framebuffer_texture(struct texture_set *texture_set, struct tex_header *tex_header)
 {
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, tex_header);
@@ -692,7 +696,7 @@ bool load_framebuffer_texture(struct texture_set *texture_set, struct tex_header
 }
 
 // load modpath texture for tex file, returns true if successful
-bool load_external_texture(struct texture_set *texture_set, struct tex_header *tex_header)
+uint load_external_texture(struct texture_set *texture_set, struct tex_header *tex_header)
 {
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, tex_header);
@@ -703,7 +707,7 @@ bool load_external_texture(struct texture_set *texture_set, struct tex_header *t
 
 	if((uint)VREF(tex_header, file.pc_name) > 32)
 	{
-		bool use_compression = true;
+		uint use_compression = true;
 
 		if(trace_loaders) trace("texture file name: %s\n", VREF(tex_header, file.pc_name));
 
@@ -752,7 +756,7 @@ _inline uint pal2bgra(uint pixel, uint *palette, uint palette_offset, uint color
 }
 
 // convert an entire image from its native format to 32-bit BGRA
-void convert_image_data(unsigned char *image_data, uint *converted_image_data, uint w, uint h, struct texture_format *tex_format, bool invert_alpha, bool color_key, uint palette_offset, uint reference_alpha)
+void convert_image_data(unsigned char *image_data, uint *converted_image_data, uint w, uint h, struct texture_format *tex_format, uint invert_alpha, uint color_key, uint palette_offset, uint reference_alpha)
 {
 	uint i, j, o = 0, c = 0;
 
@@ -850,16 +854,16 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	VOBJ(texture_set, texture_set, _texture_set);
 	VOBJ(tex_header, tex_header, _tex_header);
 	struct palette *palette = 0;
-	bool color_key = false;
+	uint color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
 
 	if(trace_all) trace("dll_gfx: load_texture 0x%x\n", _texture_set);
 
 	// no existing texture set, create one
-	if(!VPTR(texture_set)) VASS(texture_set, common_externals.create_texture_set());
+	if(!VPTR(texture_set)) VASS(texture_set, texture_set, common_externals.create_texture_set());
 
 	// allocate space for our private data
-	if(!VREF(texture_set, ogl.gl_set)) VRASS(texture_set, ogl.gl_set, driver_calloc(sizeof(struct gl_texture_set), 1));
+	if(!VREF(texture_set, ogl.gl_set)) VRASS(texture_set, ogl.gl_set, (gl_texture_set*)driver_calloc(sizeof(struct gl_texture_set), 1));
 
 	// texture handle array may not have been initialized
 	if(!VREF(texture_set, texturehandle))
@@ -867,7 +871,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 		// allocate some more textures just in case, there could be more palettes we don't know about yet
 		// FF8 likes to change its mind about just how many palettes a texture has
 		VRASS(texture_set, ogl.gl_set->textures, VREF(tex_header, palettes) > 0 ? VREF(tex_header, palettes) * 2 : 1);
-		VRASS(texture_set, texturehandle, driver_calloc(VREF(texture_set, ogl.gl_set->textures), sizeof(GLuint)));
+		VRASS(texture_set, texturehandle, (uint*)driver_calloc(VREF(texture_set, ogl.gl_set->textures), sizeof(GLuint)));
 
 		if(ff8 && VREF(tex_header, version) != FB_TEX_VERSION)
 		{
@@ -881,17 +885,17 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	// number of palettes has changed, reload the texture completely
 	if(VREF(texture_set, ogl.gl_set->textures) != VREF(tex_header, palettes) * 2 && !(VREF(tex_header, palettes) == 0 && VREF(texture_set, ogl.gl_set->textures) == 1))
 	{
-		common_unload_texture(VPTR(texture_set));
+		common_unload_texture(VPTRCAST(texture_set, texture_set));
 
-		return common_load_texture(VPTR(texture_set), VPTR(tex_header), texture_format);
+		return common_load_texture(VPTRCAST(texture_set, texture_set), VPTRCAST(tex_header, tex_header), texture_format);
 	}
 
 	// make sure the information in the texture set is consistent
-	VRASS(texture_set, tex_header, VPTR(tex_header));
+	VRASS(texture_set, tex_header, VPTRCAST(tex_header, tex_header));
 	VRASS(texture_set, texture_format, texture_format);
 
 	// check if this is suppposed to be a framebuffer texture, we may not have to do anything
-	if(load_framebuffer_texture(VPTR(texture_set), VPTR(tex_header))) return VPTR(texture_set);
+	if(load_framebuffer_texture(VPTRCAST(texture_set, texture_set), VPTRCAST(tex_header, tex_header))) return VPTRCAST(texture_set, texture_set);
 
 	// initialize palette index to a sane value if it hasn't been set
 	if(VREF(tex_header, palettes) > 0)
@@ -911,11 +915,11 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	{
 		unexpected("tried to use non-existent palette (%i, %i)\n", VREF(tex_header, palette_index), VREF(texture_set, ogl.gl_set->textures));
 		VRASS(tex_header, palette_index, 0);
-		return VPTR(texture_set);
+		return VPTRCAST(texture_set, texture_set);
 	}
 
 	// create palette structure if it doesn't exist already
-	if(VREF(tex_header, palettes) > 1 && VREF(texture_set, palette) == 0) palette = common_externals.create_palette_for_tex(texture_format->bitsperpixel, VPTR(tex_header), VPTR(texture_set));
+	if(VREF(tex_header, palettes) > 1 && VREF(texture_set, palette) == 0) palette = common_externals.create_palette_for_tex(texture_format->bitsperpixel, VPTRCAST(tex_header, tex_header), VPTRCAST(texture_set, texture_set));
 
 	if(tex_format->palettes == 0) tex_format->palettes = VREF(tex_header, palette_entries);
 
@@ -927,7 +931,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 		{
 			if(!VREF(tex_header, old_palette_data))
 			{
-				VRASS(tex_header, old_palette_data, external_malloc(4 * tex_format->palette_size));
+				VRASS(tex_header, old_palette_data, (unsigned char*)external_malloc(4 * tex_format->palette_size));
 			}
 
 			if(memcmp(VREF(tex_header, old_palette_data), tex_format->palette_data, 4 * tex_format->palette_size))
@@ -945,7 +949,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			uint c = 0;
 			uint w = VREF(tex_header, version) == FB_TEX_VERSION ? VREF(tex_header, fb_tex.w) : tex_format->width;
 			uint h = VREF(tex_header, version) == FB_TEX_VERSION ? VREF(tex_header, fb_tex.h) : tex_format->height;
-			bool invert_alpha = false;
+			uint invert_alpha = false;
 			uint *image_data;
 			// pre-calculate some useful data for palette conversion
 			uint palette_offset = VREF(tex_header, palette_index) * VREF(tex_header, palette_entries);
@@ -972,10 +976,10 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			// check if this texture can be loaded from the modpath, we may not have to do any conversion
-			if(load_external_texture(VPTR(texture_set), VPTR(tex_header))) return VPTR(texture_set);
+			if(load_external_texture(VPTRCAST(texture_set, texture_set), VPTRCAST(tex_header, tex_header))) return VPTRCAST(texture_set, texture_set);
 
 			// allocate PBO
-			image_data = gl_get_pixel_buffer(w * h * 4);
+			image_data = (uint*)gl_get_pixel_buffer(w * h * 4);
 
 			if(!ff8)
 			{
@@ -996,17 +1000,17 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			// commit PBO and populate texture set
-			gl_upload_texture(VPTR(texture_set), VREF(tex_header, palette_index), image_data, GL_BGRA);
+			gl_upload_texture(VPTRCAST(texture_set, texture_set), VREF(tex_header, palette_index), image_data, GL_BGRA);
 		}
-		else return VPTR(texture_set);
+		else return VPTRCAST(texture_set, texture_set);
 	}
 	else unexpected("no texture format specified or no source data\n");
 
-	return VPTR(texture_set);
+	return VPTRCAST(texture_set, texture_set);
 }
 
 // called by the game to indicate when a texture has switched to using another palette
-bool common_palette_changed(uint unknown1, uint unknown2, uint unknown3, struct palette *palette, struct texture_set *texture_set)
+uint common_palette_changed(uint unknown1, uint unknown2, uint unknown3, struct palette *palette, struct texture_set *texture_set)
 {
 	VOBJ(texture_set, texture_set, texture_set);
 
@@ -1028,7 +1032,7 @@ bool common_palette_changed(uint unknown1, uint unknown2, uint unknown3, struct 
 // called by the game to write new color data to a palette
 // sometimes called just to indicate that the palette has already been changed
 // return value?
-bool common_write_palette(uint source_offset, uint size, void *source, uint dest_offset, struct palette *palette, struct texture_set *texture_set)
+uint common_write_palette(uint source_offset, uint size, void *source, uint dest_offset, struct palette *palette, struct texture_set *texture_set)
 {
 	uint palette_index;
 	uint palettes;
@@ -1428,21 +1432,21 @@ void common_field_84(uint unknown, struct game_obj *game_object)
 	{
 		VRASS(polygon_set_2EC, field_0, true);
 		VRASS(polygon_set_2F0, field_0, false);
-		common_field_78(VPTR(polygon_set_2EC), game_object);
+		common_field_78(VPTRCAST(polygon_set, polygon_set_2EC), game_object);
 	}
 
 	else
 	{
 		VRASS(polygon_set_2EC, field_0, false);
 		VRASS(polygon_set_2F0, field_0, true);
-		common_field_78(VPTR(polygon_set_2F0), game_object);
+		common_field_78(VPTRCAST(polygon_set, polygon_set_2F0), game_object);
 	}
 }
 
 // called by the game to setup a new scene for rendering
 // scenes are not stacked in FF7
 // FF8 relies on the ability to stack scenes, saving and later reverting to a previous render state
-bool common_begin_scene(uint unknown, struct game_obj *game_object)
+uint common_begin_scene(uint unknown, struct game_obj *game_object)
 {
 	VOBJ(game_obj, game_object, game_object);
 
@@ -1484,7 +1488,7 @@ void generic_draw(struct polygon_set *polygon_set, struct indexed_vertices *iv, 
 	VOBJ(polygon_set, polygon_set, polygon_set);
 	VOBJ(indexed_vertices, iv, iv);
 
-	gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(iv, graphics_object), VREF(polygon_set, field_4), true);
+	gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 }
 
 // helper function used to draw a set of triangles with palette data
@@ -1503,7 +1507,7 @@ void generic_draw_paletted(struct polygon_set *polygon_set, struct indexed_verti
 
 	while(count > 0)
 	{
-		VOBJ(graphics_object, graphics_object, UNSAFE_VREF(iv, graphics_object));
+		VOBJ(graphics_object, graphics_object, UNSAFE_VREF(graphics_object, iv, graphics_object));
 		VOBJ(texture_set, texture_set, hundred_data->texture_set);
 		uint palette_index = *palettes++;
 		uint var30 = 1;
@@ -1514,7 +1518,7 @@ void generic_draw_paletted(struct polygon_set *polygon_set, struct indexed_verti
 
 		VRASS(texture_set, palette_index, palette_index);
 
-		common_palette_changed(0, 0, 0, VREF(texture_set, palette), VPTR(texture_set));
+		common_palette_changed(0, 0, 0, VREF(texture_set, palette), VPTRCAST(texture_set, texture_set));
 
 		while(var30 < count)
 		{
@@ -1532,7 +1536,7 @@ void generic_draw_paletted(struct polygon_set *polygon_set, struct indexed_verti
 
 		count -= var30;
 
-		gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, vertices, vertexcount, VREF(iv, indices), indexcount, UNSAFE_VREF(iv, graphics_object), VREF(polygon_set, field_4), true);
+		gl_draw_indexed_primitive(GL_TRIANGLES, vertextype, vertices, vertexcount, VREF(iv, indices), indexcount, UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 	}
 }
 
@@ -1569,7 +1573,7 @@ void common_setrenderstate_3D(struct polygon_set *polygon_set, struct indexed_ve
 {
 	VOBJ(polygon_set, polygon_set, polygon_set);
 	VOBJ(indexed_vertices, iv, iv);
-	VOBJ(graphics_object, graphics_object, UNSAFE_VREF(iv, graphics_object));
+	VOBJ(graphics_object, graphics_object, UNSAFE_VREF(graphics_object, iv, graphics_object));
 
 	if(trace_all) trace("dll_gfx: setrenderstate_3D\n");
 
@@ -1605,7 +1609,7 @@ void common_draw_lines(struct polygon_set *polygon_set, struct indexed_vertices 
 
 	if(trace_all) trace("dll_gfx: draw_lines\n");
 
-	gl_draw_indexed_primitive(GL_LINES, TLVERTEX, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(iv, graphics_object), VREF(polygon_set, field_4), true);
+	gl_draw_indexed_primitive(GL_LINES, TLVERTEX, VREF(iv, vertices), VREF(iv, vertexcount), VREF(iv, indices), VREF(iv, indexcount), UNSAFE_VREF(graphics_object, iv, graphics_object), VREF(polygon_set, field_4), true);
 }
 
 // noop
@@ -1615,7 +1619,7 @@ void common_field_EC(struct game_obj *game_object)
 }
 
 // create a suitable tex header to be processed by the framebuffer texture loader
-struct tex_header *make_framebuffer_tex(uint tex_w, uint tex_h, uint x, uint y, uint w, uint h, bool color_key)
+struct tex_header *make_framebuffer_tex(uint tex_w, uint tex_h, uint x, uint y, uint w, uint h, uint color_key)
 {
 	VOBJ(tex_header, tex_header, common_externals.create_tex_header());
 
@@ -1635,7 +1639,7 @@ struct tex_header *make_framebuffer_tex(uint tex_w, uint tex_h, uint x, uint y, 
 	VRASS(tex_header, fb_tex.w, INT_COORD_X(w));
 	VRASS(tex_header, fb_tex.h, INT_COORD_Y(h));
 
-	return VPTR(tex_header);
+	return VPTRCAST(tex_header, tex_header);
 }
 
 void qpc_get_time(time_t *dest)
@@ -1645,7 +1649,7 @@ void qpc_get_time(time_t *dest)
 	stats.timer = *dest;
 }
 
-void APIENTRY gldebug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, GLvoid *userParam)
+void APIENTRY gldebug_callback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam)
 {
 	const char* _source = "Unknown";
 	switch (source) {
@@ -1717,7 +1721,7 @@ PIXELFORMATDESCRIPTOR pfd =
 };
 
 // setup OpenGL context
-bool init_opengl()
+uint init_opengl()
 {
 	GLuint PixelFormat;
 	HGLRC hRC;
@@ -1918,14 +1922,14 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 
 	// game-specific initialization
 	if(!ff8)
-		ret = ff7_load_driver(VPTR(game_object));
+		ret = ff7_load_driver(VPTRCAST(ff7_game_obj, game_object));
 	else
 	{
 		// VOBJ macro initialized the wrong variable
 		ff7_game_object = 0;
-		ff8_game_object = game_object;
+		ff8_game_object = (ff8_game_obj*)game_object;
 
-		ret = ff8_load_driver(VPTR(game_object));
+		ret = ff8_load_driver(VPTRCAST(ff8_game_obj, game_object));
 	}
 
 	// catch all applog messages
@@ -1984,7 +1988,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 		{
 			MessageBoxA(hwnd, "Failed to set the requested fullscreen mode, reverting to original resolution window mode.\n", "Error", 0);
 			error("failed to set fullscreen mode\n");
-			fullscreen = false;
+			fullscreen = cfg_bool_t(false);
 			window_size_x = width;
 			window_size_y = height;
 		}
@@ -2044,7 +2048,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	if(!glewIsSupported("GL_VERSION_2_1"))
 	{
 		info("OpenGL 2.1 not available. PBO not supported\n");
-		use_pbo = false;
+		use_pbo = cfg_bool_t(false);
 	}
 
 	if(use_pbo)
@@ -2073,7 +2077,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	if(compress_textures && !GLEW_ARB_texture_compression)
 	{
 		info("Texture compression not supported\n");
-		compress_textures = false;
+		compress_textures = cfg_bool_t(false);
 	}
 
 	if(opengl_debug)
@@ -2163,14 +2167,14 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 		{
 			error("init_postprocessing failed, postprocessing will be disabled\n");
 			MessageBoxA(hwnd, "Postprocessing initialization failed, check APP.LOG for more information.", "Error", 0);
-			enable_postprocessing = false;
+			enable_postprocessing = cfg_bool_t(false);
 		}
 	}
 
 	if(use_mipmaps && !GLEW_EXT_framebuffer_object)
 	{
 		error("no FBO support, will not be able to generate mipmaps\n");
-		use_mipmaps = false;
+		use_mipmaps = cfg_bool_t(false);
 	}
 
 	// perform any additional initialization that requires the rendering environment to be set up
@@ -2187,7 +2191,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	return ret;
 }
 
-BOOL APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
+uint APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
 #ifdef DEBUG
 	int crtDbg = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
@@ -2198,3 +2202,7 @@ BOOL APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 
 	return TRUE;
 }
+
+#if defined(__cplusplus)
+}
+#endif

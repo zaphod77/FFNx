@@ -23,14 +23,16 @@
 #ifndef _MOVIES_H_
 #define _MOVIES_H_
 
+#include <ddraw.h>
+
 #include "types.h"
 
 struct movie_plugin
 {
-	void (*movie_init)(void *, void *, void *, void *, void *, void *, void **, bool, bool);
+	void (*movie_init)(void *, void *, void *, void *, void *, void *, void **, uint, uint);
 	uint (*prepare_movie)(char *);
 	void (*release_movie_objects)();
-	bool (*update_movie_sample)();
+	uint (*update_movie_sample)();
 	void (*draw_current_frame)();
 	void (*loop)();
 	void (*stop_movie)();
@@ -38,11 +40,11 @@ struct movie_plugin
 };
 
 void movie_init();
-bool ff7_prepare_movie(char *, uint, struct dddevice **, uint);
+uint ff7_prepare_movie(char *, uint, struct dddevice **, uint);
 void ff7_release_movie_objects();
-bool ff7_start_movie();
-bool ff7_update_movie_sample(LPDIRECTDRAWSURFACE);
-bool ff7_stop_movie();
+uint ff7_start_movie();
+uint ff7_update_movie_sample(LPDIRECTDRAWSURFACE);
+uint ff7_stop_movie();
 uint ff7_get_movie_frame();
 void draw_current_frame();
 void ff8_prepare_movie(uint disc, uint movie);
