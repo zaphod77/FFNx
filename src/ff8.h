@@ -44,6 +44,7 @@ enum ff8_game_modes
 	FF8_MODE_11,
 	FF8_MODE_INTRO,
 	FF8_MODE_100 = 100,
+	FF8_MODE_BATTLE = 999
 };
 
 /*

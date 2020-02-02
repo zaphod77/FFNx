@@ -38,7 +38,7 @@ static struct game_mode ff8_modes[] = {
 	{FF8_MODE_11,            "MODE_11",            MODE_UNKNOWN,       true },
 	{FF8_MODE_INTRO,         "MODE_INTRO",         MODE_INTRO,         true },
 	{FF8_MODE_100,           "MODE_100",           MODE_UNKNOWN,       true },
-	{-1,                     "MODE_BATTLE",        MODE_BATTLE,        true },
+	{FF8_MODE_BATTLE,        "MODE_BATTLE",        MODE_BATTLE,        true },
 };
 
 static unsigned char ff8_font_map[256] = {

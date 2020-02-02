@@ -87,7 +87,7 @@ void restart_midi()
 
 void stop_midi()
 {
-	if(vgm_stop_music) vgm_stop_music();
+	vgm_stop_music();
 }
 
 uint midi_status()

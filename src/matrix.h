@@ -23,7 +23,6 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
-#define M_PI       3.14159265358979323846f
 #define DEG2RAD(X) ((X) * (M_PI/180.0f))
 
 struct matrix

@@ -20,6 +20,7 @@
  * gl/special_case.c - rendering special cases, quirks or improved effects
  */
 
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 #if defined(__cplusplus)
