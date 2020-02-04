@@ -2193,13 +2193,6 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 
 uint APIENTRY DllMain(HANDLE hInst, ULONG ul_reason_for_call, LPVOID lpReserved)
 {
-#ifdef DEBUG
-	int crtDbg = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
-	crtDbg |= _CRTDBG_LEAK_CHECK_DF;
-	crtDbg &= ~_CRTDBG_CHECK_CRT_DF;
-	_CrtSetDbgFlag(crtDbg);
-#endif
-
 	return TRUE;
 }
 
