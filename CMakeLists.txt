@@ -24,7 +24,7 @@ if (SUPERBUILD)
 			"-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}"
 			"-D_DLL_VERSION=${_DLL_VERSION}"
 		DEPENDS
-		bgfx
+		DiligentEngine
 		ffmpeg
 		libpng
 		libconfuse

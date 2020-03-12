@@ -25,6 +25,16 @@ environment:
   PYTHON: "C:\\Python38-x64"
   PYTHON_VERSION: "3.8.x"
   PYTHON_ARCH: "64"
+  # Vulkan SDK
+  VULKAN: "C:\\VulkanSDK"
+  VULKAN_VERSION: "1.2.131.2"
+
+cache:
+  - VulkanSDK-%VULKAN_VERSION%.exe
+
+install:
+  - if not exist VulkanSDK-%VULKAN_VERSION%.exe curl -L --silent --show-error --output VulkanSDK-%VULKAN_VERSION%.exe https://vulkan.lunarg.com/sdk/download/%VULKAN_VERSION%/windows/VulkanSDK-%VULKAN_VERSION%-Installer.exe?Human=true
+  - VulkanSDK-%VULKAN_VERSION%.exe /S
 
 # Prepare Cpp environment
 before_build:
