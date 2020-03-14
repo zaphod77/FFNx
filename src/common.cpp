@@ -273,7 +273,7 @@ uint common_init(struct game_obj *game_object)
 	newRenderer.setBlendMode(RendererBlendMode::BLEND_NONE);
 
 	texture_format = common_externals.create_texture_format();
-	common_externals.make_pixelformat(32, 0xFF0000, 0xFF00, 0xFF, 0xFF000000, texture_format);
+	common_externals.make_pixelformat(32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000, texture_format);
 	common_externals.add_texture_format(texture_format, game_object);
 
 	return true;
@@ -690,8 +690,13 @@ _inline uint pal2bgra(uint pixel, uint *palette, uint palette_offset, uint color
 	else
 	{
 		uint color = palette[palette_offset + pixel];
+		
+		// Shift to RGBA
+		color = BGRA2RGBA(color);
+
 		// FF7 uses a form of alpha keying to emulate PSX blending
 		if(BGRA_A(color) == 0xFE) color = (color & 0xFFFFFF) | reference_alpha;
+		
 		return color;
 	}
 }
@@ -751,7 +756,7 @@ void convert_image_data(unsigned char *image_data, uint *converted_image_data, u
 						break;
 					// 24-bit RGB
 					case 3:
-						pixel = image_data[o] | image_data[o + 1] << 8 | image_data[o + 2] << 16;
+						pixel = image_data[o] << 16 | image_data[o + 1] << 8 | image_data[o + 2];
 						break;
 					// 32-bit RGBA or RGBX
 					case 4:
@@ -773,9 +778,9 @@ void convert_image_data(unsigned char *image_data, uint *converted_image_data, u
 				}
 
 				// convert source data to 8 bits per channel
-				color = tex_format->blue_max > 0 ? ((((pixel & tex_format->blue_mask) >> tex_format->blue_shift) * 255) / tex_format->blue_max) : 0;
+				color = (tex_format->blue_max > 0 ? ((((pixel & tex_format->blue_mask) >> tex_format->blue_shift) * 255) / tex_format->blue_max) : 0) << 16;
 				color |= (tex_format->green_max > 0 ? ((((pixel & tex_format->green_mask) >> tex_format->green_shift) * 255) / tex_format->green_max) : 0) << 8;
-				color |= (tex_format->red_max > 0 ? ((((pixel & tex_format->red_mask) >> tex_format->red_shift) * 255) / tex_format->red_max) : 0) << 16;
+				color |= (tex_format->red_max > 0 ? ((((pixel & tex_format->red_mask) >> tex_format->red_shift) * 255) / tex_format->red_max) : 0);
 				
 				// special case to deal with poorly converted PSX images in FF7
 				if(invert_alpha && pixel != 0x8000) color |= (tex_format->alpha_max > 0 ? (255 - ((((pixel & tex_format->alpha_mask) >> tex_format->alpha_shift) * 255) / tex_format->alpha_max)) : 255) << 24;
@@ -1967,7 +1972,7 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	// Init renderer
 	newRenderer.init();
 
-	max_texture_size = newRenderer.getCaps()->limits.maxTextureSize;
+	max_texture_size = newRenderer.getCaps().TexCaps.MaxTexture1DDimension;
 	info("Max texture size: %ix%i\n", max_texture_size, max_texture_size);
 
 	// aspect correction

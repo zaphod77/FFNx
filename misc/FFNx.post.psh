@@ -1,0 +1,31 @@
+#include "shaders/FFNx.fxh"
+
+Texture2D    g_Texture;
+SamplerState g_Texture_sampler;
+
+#define isFBTexture g_Constants.VSFlags.z > 0.0
+#define isTexture g_Constants.VSFlags.w > 0.0
+// ---
+#define inAlphaRef g_Constants.FSAlphaFlags.x
+
+#define isAlphaNever abs(g_Constants.FSAlphaFlags.y - 0.0) < 0.00001
+#define isAlphaLess abs(g_Constants.FSAlphaFlags.y - 1.0) < 0.00001
+#define isAlphaEqual abs(g_Constants.FSAlphaFlags.y - 2.0) < 0.00001
+#define isAlphaLEqual abs(g_Constants.FSAlphaFlags.y - 3.0) < 0.00001
+#define isAlphaGreater abs(g_Constants.FSAlphaFlags.y - 4.0) < 0.00001
+#define isAlphaNotEqual abs(g_Constants.FSAlphaFlags.y - 5.0) < 0.00001
+#define isAlphaGEqual abs(g_Constants.FSAlphaFlags.y - 6.0) < 0.00001
+
+#define doAlphaTest g_Constants.FSAlphaFlags.z > 0.0
+// ---
+#define isFullRange g_Constants.FSMiscFlags.x > 0.0
+#define isYUV g_Constants.FSMiscFlags.y > 0.0
+#define modulateAlpha g_Constants.FSMiscFlags.z > 0.0
+#define isMovie g_Constants.FSMiscFlags.w > 0.0
+
+void main(in PSIn IN, out PSOut OUT)
+{
+	float4 color = g_Texture.Sample(g_Texture_sampler, IN.coords.xy);
+
+	OUT.color = pow(color, float4(2.2, 2.2, 2.2, 2.2));
+}

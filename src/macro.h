@@ -98,4 +98,6 @@
 #define BGRA_B(x) (x & 0xFF)
 #define BGRA_A(x) (x >> 24 & 0xFF)
 
+#define BGRA2RGBA(n) (((n >> 24) & 0xFF) << 24 | (n & 0xFF) << 16 | ((n >> 8) & 0xFF) << 8 | ((n >> 16) & 0xFF))
+
 #define BIT(x) (1 << x)

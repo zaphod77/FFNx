@@ -1,17 +1,29 @@
 #pragma once
 
-#include <iterator>
 #include <vector>
 #include <map>
-#include <string>
-#include <math.h>
-#include <bx/math.h>
-#include <bx/bx.h>
-#include <bimg/bimg.h>
-#include <bx/allocator.h>
-#include <bgfx/platform.h>
-#include <bgfx/bgfx.h>
+
+#include <DiligentCore/Common/interface/BasicMath.hpp>
+#include <DiligentCore/Common/interface/RefCntAutoPtr.hpp>
+#include <DiligentCore/Platforms/interface/NativeWindow.h>
+#include <DiligentCore/Primitives/interface/DebugOutput.h>
+
+#include <DiligentCore/Graphics/GraphicsEngineD3D11/interface/EngineFactoryD3D11.h>
+#include <DiligentCore/Graphics/GraphicsEngineD3D12/interface/EngineFactoryD3D12.h>
+#include <DiligentCore/Graphics/GraphicsEngineOpenGL/interface/EngineFactoryOpenGL.h>
+#include <DiligentCore/Graphics/GraphicsEngineVulkan/interface/EngineFactoryVk.h>
+
+#include <DiligentCore/Graphics/GraphicsTools/interface/CommonlyUsedStates.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/RenderDevice.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/DeviceContext.h>
+#include <DiligentCore/Graphics/GraphicsEngine/interface/SwapChain.h>
+#include <DiligentCore/Graphics/GraphicsTools/interface/MapHelper.hpp>
+
+#include <DiligentCore/Graphics/GraphicsTools/interface/GraphicsUtilities.h>
+
 #include "log.h"
+
+using namespace Diligent;
 
 enum RendererBlendMode {
     BLEND_AVG = 0,
@@ -63,110 +75,41 @@ enum RendererInternalType
     COMPRESSED_RGBA
 };
 
-struct RendererCallbacks : public bgfx::CallbackI {
-    virtual ~RendererCallbacks()
-    {
-    }
-
-    virtual void fatal(const char* _filePath, uint16_t _line, bgfx::Fatal::Enum _code, const char* _str) override
-    {
-        std::string error;
-
-        switch (_code) {
-        case bgfx::Fatal::Enum::DebugCheck: error = "Debug Check";
-        case bgfx::Fatal::Enum::InvalidShader: error = "Invalid Shader";
-        case bgfx::Fatal::Enum::UnableToInitialize: error = "Unable To Initialize";
-        case bgfx::Fatal::Enum::UnableToCreateTexture: error = "Unable To Create Texture";
-        case bgfx::Fatal::Enum::DeviceLost: error = "Device Lost";
-        }
-
-        error("[%s] %s\n", error.c_str(), _str);
-    }
-
-    virtual void traceVargs(const char* _filePath, uint16_t _line, const char* _format, va_list _argList) override
-    {
-        if (renderer_debug)
-        {
-            char buffer[16 * 1024];
-
-            va_list argListCopy;
-            va_copy(argListCopy, _argList);
-            vsnprintf(buffer, sizeof(buffer), _format, argListCopy);
-            va_end(argListCopy);
-
-            trace("%s", buffer);
-        }
-    }
-
-    virtual void profilerBegin(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) override
-    {
-    }
-
-    virtual void profilerBeginLiteral(const char* _name, uint32_t _abgr, const char* _filePath, uint16_t _line) override
-    {
-    }
-
-    virtual void profilerEnd() override
-    {
-    }
-
-    virtual uint32_t cacheReadSize(uint64_t _id) override
-    {
-        // Shader not found
-        return 0;
-    }
-
-    virtual bool cacheRead(uint64_t _id, void* _data, uint32_t _size) override
-    {
-        // Rebuild Shader
-        return false;
-    }
-
-    virtual void cacheWrite(uint64_t _id, const void* _data, uint32_t _size) override
-    {
-    }
-
-    virtual void screenShot(const char* _filePath, uint32_t _width, uint32_t _height, uint32_t _pitch, const void* _data, uint32_t _size, bool _yflip) override
-    {
-    }
-
-    virtual void captureBegin(uint32_t _width, uint32_t _height, uint32_t _pitch, bgfx::TextureFormat::Enum _format, bool _yflip) override
-    {
-    }
-
-    virtual void captureEnd() override
-    {
-    }
-
-    virtual void captureFrame(const void* _data, uint32_t _size) override
-    {
-    }
-};
+void Renderer_debug_callback(enum DEBUG_MESSAGE_SEVERITY Severity, const Char* Message, const Char* Function, const Char* File, int Line);
 
 class Renderer {
 private:
-    // Current renderer view
-    enum RendererView {
-        BLIT = 0,
-        FRAMEBUFFER,
-        POSTPROCESSING
+    struct RendererTexture
+    {
+        uint8_t* data = nullptr;
+        RefCntAutoPtr<ITexture> m_pTexture;
     };
 
-    // Vertex data structure
-    struct Vertex
+    struct RendererShaderVertex
     {
-        float x;
-        float y;
-        float z;
-        float w;
-        uint bgra;
-        float u;
-        float v;
+        float4 pos;
+        float4 color;
+        float2 texcoord;
+    };
+
+    struct SConstants
+    {
+        float4 VSFlags;
+        float4 FSAlphaFlags;
+        float4 FSMiscFlags;
+        float4x4 orthoProjection;
+        float4x4 d3dViewport;
+        float4x4 d3dProjection;
+        float4x4 worldView;
     };
 
     struct RendererState
     {
-        uint16_t texHandlers[3];
+        uint texHandlers[3];
+
+        std::vector<RendererTexture> textureData;
+
+        bool bUseWireframe = false;
 
         bool bDoAlphaTest = false;
         float alphaRef = 0.0f;
@@ -185,86 +128,108 @@ private:
         bool bIsMovieFullRange = false;
         bool bIsMovieYUV = false;
 
-        float backendProjMatrix[16];
+        float4x4 backendProjMatrix;
 
-        std::vector<float> VSFlags;
-        std::vector<float> FSAlphaFlags;
-        std::vector<float> FSMiscFlags;
+        float4x4 d3dViewMatrix;
+        float4x4 d3dProjectionMatrix;
+        float4x4 worldViewMatrix;
 
-        float d3dViewMatrix[16];
-        float d3dProjectionMatrix[16];
-        float worldViewMatrix[16];
-
-        uint32_t clearColorValue;
+        float4 clearColorValue;
 
         RendererCullMode cullMode = RendererCullMode::DISABLED;
         RendererBlendMode blendMode = RendererBlendMode::BLEND_NONE;
         RendererPrimitiveType primitiveType = RendererPrimitiveType::PT_TRIANGLES;
-
-        uint64_t state = BGFX_STATE_MSAA;
     };
 
-    char shaderTextureBindings[3][6] = {
-            "tex", // BGRA or Y share the same binding
-            "tex_u",
-            "tex_v",
+    std::string vertexPath = "shaders/FFNx.vsh";
+    std::string fragmentPath = "shaders/FFNx.psh";
+    std::string vertexPostPath = "shaders/FFNx.post.vsh";
+    std::string fragmentPostPath = "shaders/FFNx.post.psh";
+
+    RefCntAutoPtr<IRenderDevice>           m_pDevice;
+    RefCntAutoPtr<IDeviceContext>          m_pImmediateContext;
+    RefCntAutoPtr<ISwapChain>              m_pSwapChain;
+
+    RefCntAutoPtr<IPipelineState>          m_pFBPSO;
+    RefCntAutoPtr<IShaderResourceBinding>  m_pFBSRB;
+
+    RefCntAutoPtr<IPipelineState>          m_pBBPSO;
+    RefCntAutoPtr<IShaderResourceBinding>  m_pBBSRB;
+
+    RefCntAutoPtr<IShader> m_pPSOVS;
+    RefCntAutoPtr<IShader> m_pPSOPS;
+    RefCntAutoPtr<IShader> m_pPSOVSPost;
+    RefCntAutoPtr<IShader> m_pPSOPSPost;
+
+    RefCntAutoPtr<IBuffer> m_pShaderConstants;
+
+    RefCntAutoPtr<IBuffer> m_pPSOVertexBuffer;
+    RefCntAutoPtr<IBuffer> m_pPSOIndexBuffer;
+
+    // Framebuffer render target and depth-stencil
+    RefCntAutoPtr<ITexture> pFBColor;
+    RefCntAutoPtr<ITexture> pFBDepth;
+    RefCntAutoPtr<ITextureView> m_pFBColorTexture;
+    RefCntAutoPtr<ITextureView> m_pFBDepthTexture;
+
+    PipelineStateDesc FBPSODesc;
+    PipelineStateDesc BBPSODesc;
+    
+    DrawIndexedAttribs PSODrawAttrs;
+
+    // Define vertex shader input layout
+    LayoutElement VSInputLayout[3]
+    {
+        // Attribute 0 - vertex position
+        LayoutElement{0, 0, 4, VT_FLOAT32, False},
+        // Attribute 1 - texture color
+        LayoutElement{1, 0, 4, VT_FLOAT32, False},
+        // Attribute 2 - texture coordinates
+        LayoutElement{2, 0, 2, VT_FLOAT32, False}
     };
 
-    std::string vertexPath = "shaders/FFNx";
-    std::string fragmentPath = "shaders/FFNx";
-    std::string vertexPostPath = "shaders/FFNx.post";
-    std::string fragmentPostPath = "shaders/FFNx.post";
+    ShaderResourceVariableDesc FBShaderVars[3] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE },
+        { SHADER_TYPE_PIXEL, "g_Texture_u", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE },
+        { SHADER_TYPE_PIXEL, "g_Texture_v", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE }
+    };
 
-    bgfx::ViewId backendViewId = RendererView::FRAMEBUFFER;
-
-    std::vector<bgfx::ProgramHandle> backendProgramHandles = { BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE };
-
-    std::vector<bgfx::TextureHandle> backendFrameBufferRT = { BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE };
-    bgfx::FrameBufferHandle backendFrameBuffer = BGFX_INVALID_HANDLE;
-
-    bgfx::VertexBufferHandle vertexBufferHandle = BGFX_INVALID_HANDLE;
-    bgfx::IndexBufferHandle indexBufferHandle = BGFX_INVALID_HANDLE;
-    bgfx::VertexLayout vertexLayout;
-
-    bgfx::TextureHandle emptyTexture = BGFX_INVALID_HANDLE;
-
-    std::map<std::string,uint16_t> bgfxUniformHandles;
+    // Define static sampler for g_Texture. Static samplers should be used whenever possible
+    StaticSamplerDesc FBShaderSamplers[3] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Texture", Sam_LinearWrap },
+        { SHADER_TYPE_PIXEL, "g_Texture_u", Sam_LinearWrap },
+        { SHADER_TYPE_PIXEL, "g_Texture_v", Sam_LinearWrap }
+    };
 
     RendererState internalState;
 
-    RendererCallbacks bgfxCallbacks;
+    Uint32 viewOffsetX = 0;
+    Uint32 viewOffsetY = 0;
+    Uint32 viewWidth = 0;
+    Uint32 viewHeight = 0;
 
-    uint16_t viewOffsetX = 0;
-    uint16_t viewOffsetY = 0;
-    uint16_t viewWidth = 0;
-    uint16_t viewHeight = 0;
+    Uint32 framebufferWidth = 0;
+    Uint32 framebufferHeight = 0;
 
-    uint16_t framebufferWidth = 0;
-    uint16_t framebufferHeight = 0;
+    Uint32 scissorOffsetX = 0;
+    Uint32 scissorOffsetY = 0;
+    Uint32 scissorWidth = 0;
+    Uint32 scissorHeight = 0;
 
-    uint16_t scissorOffsetX = 0;
-    uint16_t scissorOffsetY = 0;
-    uint16_t scissorWidth = 0;
-    uint16_t scissorHeight = 0;
+    Uint32 framebufferVertexOffsetX = 0;
+    Uint32 framebufferVertexWidth = 0;
 
-    uint16_t framebufferVertexOffsetX = 0;
-    uint16_t framebufferVertexWidth = 0;
-
-    uint32_t createBGRA(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
     void setCommonUniforms();
-    bgfx::RendererType::Enum getRendererType();
-    bgfx::ShaderHandle getShader(const char* filePath);
-
-    bgfx::UniformHandle getUniform(std::string uniformName, bgfx::UniformType::Enum uniformType);
-    bgfx::UniformHandle setUniform(const char* uniformName, bgfx::UniformType::Enum uniformType, const void* uniformValue);
-    void destroyUniforms();
+    RENDER_DEVICE_TYPE getRendererType();
     void destroyAll();
 
     void reset();
 
     void renderFrameBuffer();
 
-    void printMatrix(char* name, float* mat);
+    void printMatrix(char* name, float4x4 mat);
 
 public:
     void init();
@@ -277,7 +242,7 @@ public:
 
     // ---
 
-    const bgfx::Caps* getCaps();
+    DeviceCaps getCaps();
 
     void bindVertexBuffer(struct nvertex* inVertex, uint inCount);
     void bindIndexBuffer(word* inIndex, uint inCount);
@@ -287,7 +252,7 @@ public:
     void setBackgroundColor(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 0.0f);
 
     uint createTexture(uint8_t* data, size_t width, size_t height, int stride = 0, RendererTextureType type = RendererTextureType::BGRA, bool generateMips = false);
-    void deleteTexture(uint16_t texId);
+    void deleteTexture(uint texId);
     void useTexture(uint texId, uint slot = 0);
     uint blitTexture(uint x, uint y, uint width, uint height);
 

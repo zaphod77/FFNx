@@ -105,7 +105,8 @@ void ffmpeg_movie_init()
 	info("FFMpeg movie player plugin loaded\n");
 	info("FFMpeg version 4.2.2, Copyright (c) 2000-2020 Fabrice Bellard, et al.\n");
 
-	texture_units = newRenderer.getCaps()->limits.maxTextureSamplers;
+	// TODO: FIND A WAY TO GET IT THROUGH CAPS
+	texture_units = 3;
 
 	if(texture_units < 3) info("No multitexturing, codecs with YUV output will be slow. (texture units: %i)\n", texture_units);
 	else yuv_fast_path = true;

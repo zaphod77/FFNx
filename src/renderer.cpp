@@ -2,174 +2,117 @@
 
 Renderer newRenderer;
 
-// PRIVATE
-
-// Via https://stackoverflow.com/a/14375308
-uint32_t Renderer::createBGRA(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+void Renderer_debug_callback(enum DEBUG_MESSAGE_SEVERITY Severity, const Char* Message, const Char* Function, const Char* File, int Line)
 {
-    return ((b & 0xff) << 24) + ((g & 0xff) << 16) + ((r & 0xff) << 8) + (a & 0xff);
+    switch (Severity) {
+    case DEBUG_MESSAGE_SEVERITY::DEBUG_MESSAGE_SEVERITY_FATAL_ERROR:
+    case DEBUG_MESSAGE_SEVERITY::DEBUG_MESSAGE_SEVERITY_ERROR:
+        error("%s\n", Message);
+        break;
+    case DEBUG_MESSAGE_SEVERITY::DEBUG_MESSAGE_SEVERITY_WARNING:
+        warning("%s\n", Message);
+        break;
+    case DEBUG_MESSAGE_SEVERITY::DEBUG_MESSAGE_SEVERITY_INFO:
+        info("%s\n", Message);
+        break;
+    default:
+        trace("%s\n", Message);
+    }
 }
 
+// PRIVATE
 void Renderer::setCommonUniforms()
 {
-    internalState.VSFlags = {
+    // Map Uniform buffers
+    MapHelper<SConstants> SConsts(m_pImmediateContext, m_pShaderConstants, MAP_WRITE, MAP_FLAG_DISCARD);
+
+    SConsts->VSFlags = float4(
         (float)internalState.bIsTLVertex,
         (float)internalState.blendMode,
         (float)internalState.bIsFBTexture,
         (float)internalState.bIsTexture
-    };
-    if (renderer_debug) trace("%s: VSFlags XYZW(isTLVertex %f, blendMode %f, isFBTexture %f, isTexture %f)\n", __func__, internalState.VSFlags[0], internalState.VSFlags[1], internalState.VSFlags[2], internalState.VSFlags[3]);
+    );
+    if (renderer_debug) trace("%s: VSFlags XYZW(isTLVertex %f, blendMode %f, isFBTexture %f, isTexture %f)\n", __func__, SConsts->VSFlags.x, SConsts->VSFlags.y, SConsts->VSFlags.z, SConsts->VSFlags.w);
 
-    internalState.FSAlphaFlags = {
+    SConsts->FSAlphaFlags = float4(
         (float)internalState.alphaRef,
         (float)internalState.alphaFunc,
         (float)internalState.bDoAlphaTest,
         NULL
-    };
-    if (renderer_debug) trace("%s: FSAlphaFlags XYZW(inAlphaRef %f, inAlphaFunc %f, bDoAlphaTest %f, NULL)\n", __func__, internalState.FSAlphaFlags[0], internalState.FSAlphaFlags[1], internalState.FSAlphaFlags[2]);
+    );
+    if (renderer_debug) trace("%s: FSAlphaFlags XYZW(inAlphaRef %f, inAlphaFunc %f, bDoAlphaTest %f, NULL)\n", __func__, SConsts->FSAlphaFlags.x, SConsts->FSAlphaFlags.y, SConsts->FSAlphaFlags.z);
 
-    internalState.FSMiscFlags = {
+    SConsts->FSMiscFlags = float4(
         (float)internalState.bIsMovieFullRange,
         (float)internalState.bIsMovieYUV,
         (float)internalState.bModulateAlpha,
         (float)internalState.bIsMovie
-    };
-    if (renderer_debug) trace("%s: FSMiscFlags XYZW(isMovieFullRange %f, isMovieYUV %f, modulateAlpha %f, isMovie %f)\n", __func__, internalState.FSMiscFlags[0], internalState.FSMiscFlags[1], internalState.FSMiscFlags[2], internalState.FSMiscFlags[3]);
+    );
+    if (renderer_debug) trace("%s: FSMiscFlags XYZW(isMovieFullRange %f, isMovieYUV %f, modulateAlpha %f, isMovie %f)\n", __func__, SConsts->FSMiscFlags.x, SConsts->FSMiscFlags.y, SConsts->FSMiscFlags.z, SConsts->FSMiscFlags.w);
 
-    setUniform("VSFlags", bgfx::UniformType::Vec4, internalState.VSFlags.data());
-    setUniform("FSAlphaFlags", bgfx::UniformType::Vec4, internalState.FSAlphaFlags.data());
-    setUniform("FSMiscFlags", bgfx::UniformType::Vec4, internalState.FSMiscFlags.data());
-
-    setUniform("d3dViewport", bgfx::UniformType::Mat4, internalState.d3dViewMatrix);
-    setUniform("d3dProjection", bgfx::UniformType::Mat4, internalState.d3dProjectionMatrix);
-    setUniform("worldView", bgfx::UniformType::Mat4, internalState.worldViewMatrix);
+    SConsts->d3dViewport = internalState.d3dViewMatrix;
+    SConsts->d3dProjection = internalState.d3dProjectionMatrix;
+    SConsts->worldView = internalState.worldViewMatrix;
+    SConsts->orthoProjection = internalState.backendProjMatrix;
 }
 
-bgfx::RendererType::Enum Renderer::getRendererType() {
+RENDER_DEVICE_TYPE Renderer::getRendererType()
+{
     std::string backend(renderer_backend);
-    bgfx::RendererType::Enum ret;
-
-    std::string shaderSuffix;
+    RENDER_DEVICE_TYPE ret;
 
     if (backend == "Vulkan") {
-        ret = bgfx::RendererType::Vulkan;
-        shaderSuffix = ".vk";
+        ret = RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_VULKAN;
     }
     else if (backend == "Direct3D12") {
-        ret = bgfx::RendererType::Direct3D12;
-        shaderSuffix = ".d3d12";
+        ret = RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_D3D12;
     }
     else if (backend == "Direct3D11") {
-        ret = bgfx::RendererType::Direct3D11;
-        shaderSuffix = ".d3d11";
+        ret = RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_D3D11;
     }
     else if (backend == "OpenGL") {
-        ret = bgfx::RendererType::OpenGL;
-        shaderSuffix = ".gl";
+        ret = RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_GL;
     }
     else {
-        ret = bgfx::RendererType::Noop;
+        ret = RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_UNDEFINED;
     }
-
-    vertexPath += shaderSuffix + ".vert";
-    fragmentPath += shaderSuffix + ".frag";
-    vertexPostPath += shaderSuffix + ".vert";
-    fragmentPostPath += shaderSuffix + ".frag";
 
     return ret;
 }
 
-// Via https://dev.to/pperon/hello-bgfx-4dka
-bgfx::ShaderHandle Renderer::getShader(const char* filePath)
-{
-    bgfx::ShaderHandle handle = BGFX_INVALID_HANDLE;
-
-    FILE* file = fopen(filePath, "rb");
-
-    fseek(file, 0, SEEK_END);
-    long fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    const bgfx::Memory* mem = bgfx::alloc(fileSize);
-    fread(mem->data, 1, fileSize, file);
-    fclose(file);
-
-    handle = bgfx::createShader(mem);
-
-    if (bgfx::isValid(handle))
-    {
-        bgfx::setName(handle, filePath);
-    }
-
-    return handle;
-}
-
-bgfx::UniformHandle Renderer::getUniform(std::string uniformName, bgfx::UniformType::Enum uniformType)
-{
-    bgfx::UniformHandle handle;
-    auto ret = bgfxUniformHandles.find(uniformName);
-
-    if (ret != bgfxUniformHandles.end())
-    {
-        handle = { (uint16_t)ret->second };
-    }
-    else
-    {
-        handle = bgfx::createUniform(uniformName.c_str(), uniformType);
-        bgfxUniformHandles[uniformName] = handle.idx;
-    }
-
-    return handle;    
-}
-
-bgfx::UniformHandle Renderer::setUniform(const char* uniformName, bgfx::UniformType::Enum uniformType, const void* uniformValue)
-{
-    bgfx::UniformHandle handle = getUniform(std::string(uniformName), uniformType);
-
-    if (bgfx::isValid(handle))
-    {
-        bgfx::setUniform(handle, uniformValue);
-    }
-
-    return handle;
-}
-
-void Renderer::destroyUniforms()
-{
-    for (const auto& item : bgfxUniformHandles)
-    {
-        bgfx::UniformHandle handle = { item.second };
-
-        if (bgfx::isValid(handle))
-            bgfx::destroy(handle);
-    }
-
-    bgfxUniformHandles.clear();
-}
-
 void Renderer::destroyAll()
 {
-    destroyUniforms();
+    m_pImmediateContext->Flush();
 
-    bgfx::destroy(emptyTexture);
+    m_pShaderConstants.Release();
 
-    bgfx::destroy(vertexBufferHandle);
+    m_pPSOVertexBuffer.Release();
+    m_pPSOIndexBuffer.Release();
 
-    bgfx::destroy(indexBufferHandle);
+    m_pFBSRB.Release();
+    m_pFBPSO.Release();
 
-    bgfx::destroy(backendFrameBuffer);
+    m_pBBSRB.Release();
+    m_pBBPSO.Release();
 
-    for (auto handle : backendProgramHandles)
-    {
-        if (bgfx::isValid(handle))
-            bgfx::destroy(handle);
-    }
+    m_pFBDepthTexture.Release();
+    m_pFBColorTexture.Release();
+
+    m_pPSOPS.Release();
+    m_pPSOVS.Release();
+    m_pPSOPSPost.Release();
+    m_pPSOVSPost.Release();
+
+    m_pImmediateContext.Release();
+    m_pSwapChain.Release();
+    m_pDevice.Release();
 };
 
 void Renderer::reset()
 {
     setBackgroundColor();
 
+    setWireframeMode();
     doDepthTest();
     doDepthWrite();
     doScissorTest();
@@ -201,12 +144,12 @@ void Renderer::renderFrameBuffer()
     float x0 = preserve_aspect ? framebufferVertexOffsetX : 0.0f;
     float y0 = 0.0f;
     float u0 = 0.0f;
-    float v0 = getCaps()->originBottomLeft ? 1.0f : 0.0f;
+    float v0 = m_pDevice->GetDeviceCaps().IsGLDevice() ? 1.0f : 0.0f;
     // 1
     float x1 = x0;
     float y1 = game_height;
     float u1 = u0;
-    float v1 = getCaps()->originBottomLeft ? 0.0f : 1.0f;
+    float v1 = m_pDevice->GetDeviceCaps().IsGLDevice() ? 0.0f : 1.0f;
     // 2
     float x2 = x0 + (preserve_aspect ? framebufferVertexWidth : game_width);
     float y2 = y0;
@@ -229,26 +172,37 @@ void Renderer::renderFrameBuffer()
         1, 3, 2
     };
 
-    backendViewId = RendererView::POSTPROCESSING;
-    {
-        setClearFlags(true, true);
+    auto* pRTV = m_pSwapChain->GetCurrentBackBufferRTV();
 
-        bindVertexBuffer(vertices, 4);
-        bindIndexBuffer(indices, 6);
+    m_pImmediateContext->SetRenderTargets(1, &pRTV, m_pSwapChain->GetDepthBufferDSV(), RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        useTexture(
-            bgfx::getTexture(backendFrameBuffer).idx
-        );
+    // Set the pipeline state in the immediate context
+    m_pImmediateContext->SetPipelineState(m_pBBPSO);
 
-        doTextureFiltering(true);
-        setPrimitiveType();
+    m_pImmediateContext->ClearRenderTarget(m_pSwapChain->GetCurrentBackBufferRTV(), internalState.clearColorValue.Data(), RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    m_pImmediateContext->ClearDepthStencil(m_pSwapChain->GetDepthBufferDSV(), CLEAR_DEPTH_FLAG | CLEAR_STENCIL_FLAG, 1.0f, 0, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-        draw();
-    }
-    backendViewId = RendererView::FRAMEBUFFER;
+    setCommonUniforms();
+
+    // Create a shader resource binding object and bind all static resources in it
+    m_pBBSRB.Release();
+    m_pBBPSO->CreateShaderResourceBinding(&m_pBBSRB, true);
+
+    // Set render target color texture SRV in the SRB
+    m_pBBSRB->GetVariableByName(SHADER_TYPE_PIXEL, "g_Texture")->Set(pFBColor->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE));
+
+    bindVertexBuffer(vertices, 4);
+    bindIndexBuffer(indices, 6);
+
+    // Commit shader resources. This call also sets the shaders in OpenGL backend.
+    m_pImmediateContext->CommitShaderResources(m_pBBSRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    m_pImmediateContext->DrawIndexed(PSODrawAttrs);
+
+    m_pImmediateContext->SetRenderTargets(1, &m_pFBColorTexture, m_pFBDepthTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 };
 
-void Renderer::printMatrix(char* name, float* mat)
+void Renderer::printMatrix(char* name, float4x4 mat)
 {
     trace("%s: 0 [%f, %f, %f, %f]\n", name, mat[0], mat[1], mat[2], mat[3]);
     trace("%s: 1 [%f, %f, %f, %f]\n", name, mat[4], mat[5], mat[6], mat[7]);
@@ -260,6 +214,12 @@ void Renderer::printMatrix(char* name, float* mat)
 
 void Renderer::init()
 {
+    const NativeWindow* NativeWindowHandle = (const NativeWindow*)&hwnd;
+
+    RefCntAutoPtr<IShaderSourceInputStreamFactory> pShaderSourceFactory;
+    ShaderCreateInfo ShaderCI;
+    SwapChainDesc SCDesc;
+
     viewWidth = (preserve_aspect ? ((window_size_y * 4) / 3) : window_size_x);
     viewHeight = window_size_y;
     viewOffsetX = (preserve_aspect ? ((window_size_x - viewWidth) / 2) : 0);
@@ -272,189 +232,426 @@ void Renderer::init()
     framebufferVertexWidth = (viewWidth * game_width) / window_size_x;
     framebufferVertexOffsetX = (game_width - framebufferVertexWidth) / 2;
 
-    // Init renderer
-    bgfx::Init bgfxInit;
-    bgfxInit.platformData.nwh = hwnd;
-    bgfxInit.type = getRendererType();
-    bgfxInit.resolution.width = window_size_x;
-    bgfxInit.resolution.height = window_size_y;
+    SCDesc.ColorBufferFormat = TEX_FORMAT_RGBA8_UNORM;
+    SCDesc.DepthBufferFormat = TEX_FORMAT_D24_UNORM_S8_UINT;
 
-    if (enable_vsync)
-        bgfxInit.resolution.reset = BGFX_RESET_VSYNC;
+    // Generic debug callback
+    if (renderer_debug) DebugMessageCallback = &Renderer_debug_callback;
 
-    bgfxInit.debug = renderer_debug;
-    bgfxInit.callback = &bgfxCallbacks;
+    switch (getRendererType())
+    {
+    case RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_D3D11:
+    {
+        EngineD3D11CreateInfo EngineCI;
+        IEngineFactoryD3D11* pFactoryD3D11 = GetEngineFactoryD3D11();
 
-    if (!bgfx::init(bgfxInit)) exit(1);
+        if (renderer_debug)
+        {
+            EngineCI.DebugMessageCallback = &Renderer_debug_callback;
+            EngineCI.DebugFlags |=
+                D3D11_DEBUG_FLAG_CREATE_DEBUG_DEVICE |
+                D3D11_DEBUG_FLAG_VERIFY_COMMITTED_SHADER_RESOURCES;
+        }
 
-    bx::mtxOrtho(internalState.backendProjMatrix, 0.0f, game_width, game_height, 0.0f, -1.0f, 1.0f, 0.0, bgfx::getCaps()->homogeneousDepth);
+        pFactoryD3D11->CreateDeviceAndContextsD3D11(EngineCI, &m_pDevice, &m_pImmediateContext);
+        pFactoryD3D11->CreateSwapChainD3D11(m_pDevice, m_pImmediateContext, SCDesc, FullScreenModeDesc{}, *NativeWindowHandle, &m_pSwapChain);
+        pFactoryD3D11->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
+    }
+    break;
 
-    // Create an empty texture
-    emptyTexture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::BGRA8);
+    case RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_D3D12:
+    {
+        EngineD3D12CreateInfo EngineCI;
+        IEngineFactoryD3D12* pFactoryD3D12 = GetEngineFactoryD3D12();
 
-    bool canAutogenMipmaps = (getCaps()->formats[bgfx::TextureFormat::RGBA8] & BGFX_CAPS_FORMAT_TEXTURE_MIP_AUTOGEN);
+        if (renderer_debug)
+        {
+            EngineCI.DebugMessageCallback = &Renderer_debug_callback;
+            EngineCI.EnableDebugLayer = true;
+        }
 
-    if (!canAutogenMipmaps)
-        error("Possible pixelated output. Your GPU DOES NOT support Mipmap autogeneration on %s. Please try with another backend.\n", renderer_backend);
+        pFactoryD3D12->CreateDeviceAndContextsD3D12(EngineCI, &m_pDevice, &m_pImmediateContext);
+        pFactoryD3D12->CreateSwapChainD3D12(m_pDevice, m_pImmediateContext, SCDesc, FullScreenModeDesc{}, *NativeWindowHandle, &m_pSwapChain);
+        pFactoryD3D12->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
+    }
+    break;
 
-    backendFrameBufferRT = {
-        bgfx::createTexture2D(
-            framebufferWidth,
-            framebufferHeight,
-            canAutogenMipmaps && use_mipmaps,
-            1,
-            bgfx::TextureFormat::RGBA8,
-            0 | BGFX_TEXTURE_RT | BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_W_CLAMP
-        ),
-        bgfx::createTexture2D(
-            framebufferWidth,
-            framebufferHeight,
-            false,
-            1,
-            bgfx::TextureFormat::D24S8,
-            0 | BGFX_TEXTURE_RT | BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MIP_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_W_CLAMP
-        )
+    case RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_GL:
+    {
+        EngineGLCreateInfo EngineCI;
+        IEngineFactoryOpenGL* pFactoryOpenGL = GetEngineFactoryOpenGL();
+
+        if (renderer_debug) EngineCI.DebugMessageCallback = &Renderer_debug_callback;
+
+        EngineCI.Window = *NativeWindowHandle;
+        pFactoryOpenGL->CreateDeviceAndSwapChainGL(EngineCI, &m_pDevice, &m_pImmediateContext, SCDesc, &m_pSwapChain);
+        pFactoryOpenGL->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
+    }
+    break;
+
+    case RENDER_DEVICE_TYPE::RENDER_DEVICE_TYPE_VULKAN:
+    {
+        EngineVkCreateInfo EngineCI;
+        IEngineFactoryVk* pFactoryVk = GetEngineFactoryVk();
+
+        if (renderer_debug)
+        {
+            EngineCI.DebugMessageCallback = &Renderer_debug_callback;
+            EngineCI.EnableValidation = true;
+        }
+
+        pFactoryVk->CreateDeviceAndContextsVk(EngineCI, &m_pDevice, &m_pImmediateContext);
+        if (!m_pSwapChain && NativeWindowHandle != nullptr)
+            pFactoryVk->CreateSwapChainVk(m_pDevice, m_pImmediateContext, SCDesc, *NativeWindowHandle, &m_pSwapChain);
+        pFactoryVk->CreateDefaultShaderSourceStreamFactory(nullptr, &pShaderSourceFactory);
+    }
+    break;
+
+    default:
+        error("Unknown device type. Exiting.");
+        exit(1);
+    }
+
+    // Set common shader properties
+    ShaderCI.SourceLanguage = SHADER_SOURCE_LANGUAGE::SHADER_SOURCE_LANGUAGE_HLSL;
+    ShaderCI.UseCombinedTextureSamplers = true;
+    ShaderCI.pShaderSourceStreamFactory = pShaderSourceFactory;
+    ShaderCI.EntryPoint = "main";
+
+    // VS
+    ShaderCI.Desc.Name = "FB VS";
+    ShaderCI.Desc.ShaderType = SHADER_TYPE_VERTEX;
+    ShaderCI.FilePath = vertexPath.c_str();
+    m_pDevice->CreateShader(ShaderCI, &m_pPSOVS);
+
+    // PS
+    ShaderCI.Desc.Name = "FB PS";
+    ShaderCI.Desc.ShaderType = SHADER_TYPE_PIXEL;
+    ShaderCI.FilePath = fragmentPath.c_str();
+    m_pDevice->CreateShader(ShaderCI, &m_pPSOPS);
+
+    // VS Post
+    ShaderCI.Desc.Name = "BB VS";
+    ShaderCI.Desc.ShaderType = SHADER_TYPE_VERTEX;
+    ShaderCI.FilePath = vertexPostPath.c_str();
+    m_pDevice->CreateShader(ShaderCI, &m_pPSOVSPost);
+
+    // PS Post
+    ShaderCI.Desc.Name = "BB PS";
+    ShaderCI.Desc.ShaderType = SHADER_TYPE_PIXEL;
+    ShaderCI.FilePath = fragmentPostPath.c_str();
+    m_pDevice->CreateShader(ShaderCI, &m_pPSOPSPost);
+
+    // Create shaders uniform buffers
+    CreateUniformBuffer(m_pDevice, sizeof(SConstants), "Shader constants", &m_pShaderConstants);
+
+    // Set projection matrix
+    internalState.backendProjMatrix = internalState.backendProjMatrix.OrthoOffCenter(0, game_width, game_height, 0, -1.0f, 1.0f, m_pDevice->GetDeviceCaps().IsGLDevice());
+
+    /* === Init FB PSO === */
+    FBPSODesc.Name = "FB PSO";
+    FBPSODesc.IsComputePipeline = false;
+    FBPSODesc.GraphicsPipeline.NumRenderTargets = 1;
+    FBPSODesc.GraphicsPipeline.RTVFormats[0] = m_pSwapChain->GetDesc().ColorBufferFormat;
+    FBPSODesc.GraphicsPipeline.DSVFormat = m_pSwapChain->GetDesc().DepthBufferFormat;
+    FBPSODesc.GraphicsPipeline.pVS = m_pPSOVS;
+    FBPSODesc.GraphicsPipeline.pPS = m_pPSOPS;
+    FBPSODesc.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    FBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthEnable = True;
+    FBPSODesc.GraphicsPipeline.InputLayout.LayoutElements = VSInputLayout;
+    FBPSODesc.GraphicsPipeline.InputLayout.NumElements = _countof(VSInputLayout);
+
+    // Define variable type that will be used by default
+    FBPSODesc.ResourceLayout.DefaultVariableType = SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
+
+    // Create FB Color texture
+    TextureDesc FBColorDesc;
+    FBColorDesc.Type = RESOURCE_DIM_TEX_2D;
+    FBColorDesc.Width = framebufferWidth;
+    FBColorDesc.Height = framebufferHeight;
+    FBColorDesc.MipLevels = 1;
+    FBColorDesc.Format = FBPSODesc.GraphicsPipeline.RTVFormats[0];
+    FBColorDesc.BindFlags = BIND_SHADER_RESOURCE | BIND_RENDER_TARGET;
+    //FBColorDesc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+    m_pDevice->CreateTexture(FBColorDesc, nullptr, &pFBColor);
+    m_pFBColorTexture = pFBColor->GetDefaultView(TEXTURE_VIEW_RENDER_TARGET);
+    
+    // Create FB Depth texture
+    TextureDesc RTDepthDesc = FBColorDesc;
+    RTDepthDesc.Format = FBPSODesc.GraphicsPipeline.DSVFormat;
+    RTDepthDesc.BindFlags = BIND_SHADER_RESOURCE | BIND_DEPTH_STENCIL;
+    m_pDevice->CreateTexture(RTDepthDesc, nullptr, &pFBDepth);
+    m_pFBDepthTexture = pFBDepth->GetDefaultView(TEXTURE_VIEW_DEPTH_STENCIL);
+
+    // Set Framebuffer texture as renderer targets
+    m_pImmediateContext->SetRenderTargets(1, &m_pFBColorTexture, m_pFBDepthTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    /* === Init BB PSO === */
+
+    BBPSODesc.Name = "BB PSO";
+    BBPSODesc.IsComputePipeline = false;
+    BBPSODesc.GraphicsPipeline.NumRenderTargets = 1;
+    BBPSODesc.GraphicsPipeline.RTVFormats[0] = m_pSwapChain->GetDesc().ColorBufferFormat;
+    BBPSODesc.GraphicsPipeline.DSVFormat = m_pSwapChain->GetDesc().DepthBufferFormat;
+    BBPSODesc.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    BBPSODesc.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE_NONE;
+    BBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthEnable = True;
+    BBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = False;
+    BBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthFunc = COMPARISON_FUNCTION::COMPARISON_FUNC_ALWAYS;
+    BBPSODesc.GraphicsPipeline.pVS = m_pPSOVSPost;
+    BBPSODesc.GraphicsPipeline.pPS = m_pPSOPSPost;
+    BBPSODesc.GraphicsPipeline.InputLayout.LayoutElements = VSInputLayout;
+    BBPSODesc.GraphicsPipeline.InputLayout.NumElements = _countof(VSInputLayout);
+
+    // Define variable type that will be used by default
+    BBPSODesc.ResourceLayout.DefaultVariableType = SHADER_RESOURCE_VARIABLE_TYPE_STATIC;
+
+    // Shader variables should typically be mutable, which means they are expected to change on a per-instance basis
+    ShaderResourceVariableDesc BBSRVVars[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Texture", SHADER_RESOURCE_VARIABLE_TYPE_MUTABLE }
     };
+    BBPSODesc.ResourceLayout.Variables = BBSRVVars;
+    BBPSODesc.ResourceLayout.NumVariables = _countof(BBSRVVars);
 
-    backendFrameBuffer = bgfx::createFrameBuffer(
-        backendFrameBufferRT.size(),
-        backendFrameBufferRT.data(),
-        true
-    );
+    // Define static sampler for g_Texture. Static samplers should be used whenever possible
+    StaticSamplerDesc BBSSStaticSamplers[] =
+    {
+        { SHADER_TYPE_PIXEL, "g_Texture", Sam_LinearClamp }
+    };
+    BBPSODesc.ResourceLayout.StaticSamplers = BBSSStaticSamplers;
+    BBPSODesc.ResourceLayout.NumStaticSamplers = _countof(BBSSStaticSamplers);
 
-    // Create Program
-    backendProgramHandles[RendererView::POSTPROCESSING] = bgfx::createProgram(
-        getShader(vertexPostPath.c_str()),
-        getShader(fragmentPostPath.c_str()),
-        true
-    );
+    m_pDevice->CreatePipelineState(BBPSODesc, &m_pBBPSO);
 
-    backendProgramHandles[RendererView::FRAMEBUFFER] = bgfx::createProgram(
-        getShader(vertexPath.c_str()),
-        getShader(fragmentPath.c_str()),
-        true
-    );
+    m_pBBPSO->GetStaticVariableByName(SHADER_TYPE_VERTEX, "SConstants")->Set(m_pShaderConstants);
+    m_pBBPSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SConstants")->Set(m_pShaderConstants);
 
-    vertexLayout
-        .begin()
-        .add(bgfx::Attrib::Position, 4, bgfx::AttribType::Float)
-        .add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
-        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
-        .end();
-
-    // Set view to render in the framebuffer
-    bgfx::setViewFrameBuffer(RendererView::FRAMEBUFFER, backendFrameBuffer);
-
-    if (fullscreen) bgfx::setDebug(BGFX_DEBUG_TEXT);
-
-    bgfx::frame();
-
-    // Set defaults
-    show();
+    // Create default empty texture, with id 0
+    createTexture(nullptr, 1, 1);
 };
 
 void Renderer::shutdown()
 {
     destroyAll();
 
-    bgfx::shutdown();
+    m_pImmediateContext.Release();
+    m_pSwapChain.Release();
+    m_pDevice.Release();
 }
 
 void Renderer::draw()
 {
     if (trace_all) trace("Renderer::%s\n", __func__);
 
-    // Set current view rect
-    if (backendViewId == RendererView::POSTPROCESSING)
-        bgfx::setViewRect(backendViewId, 0, 0, window_size_x, window_size_y);
-    else {
-        bgfx::setViewRect(backendViewId, 0, 0, framebufferWidth, framebufferHeight);
+    Viewport viewData;
+    Rect scissorData;
 
-        if (internalState.bDoScissorTest) bgfx::setScissor(scissorOffsetX, scissorOffsetY, scissorWidth, scissorHeight);
-    }
-
-    // Set current view transform
-    bgfx::setViewTransform(backendViewId, NULL, internalState.backendProjMatrix);
-
-    setCommonUniforms();
-
-    // Bind texture
+    // Prepare texture samplers
     {
         uint idxMax = 3;
 
         for (uint idx = 0; idx < idxMax; idx++)
         {
-            uint16_t rt = internalState.texHandlers[idx];
+            uint rt = internalState.texHandlers[idx];
 
-            bgfx::TextureHandle handle = { rt };
-
-            if (!internalState.bIsMovie && idx > 0) handle = emptyTexture;
-
-            if (bgfx::isValid(handle))
+            if (internalState.textureData[rt].data != nullptr)
             {
-                uint32_t flags = 0;
+                FBShaderSamplers[idx].Desc.MinLOD = -1000;
+                FBShaderSamplers[idx].Desc.MaxLOD = 1000;
 
-                if (internalState.bIsMovie || backendViewId == RendererView::POSTPROCESSING) flags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_W_CLAMP;
+                if (internalState.bIsMovie)
+                {
+                    FBShaderSamplers[idx].Desc.AddressU = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_CLAMP;
+                    FBShaderSamplers[idx].Desc.AddressV = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_CLAMP;
+                    FBShaderSamplers[idx].Desc.AddressW = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_CLAMP;
+                }
+                else
+                {
+                    FBShaderSamplers[idx].Desc.AddressU = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_WRAP;
+                    FBShaderSamplers[idx].Desc.AddressV = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_WRAP;
+                    FBShaderSamplers[idx].Desc.AddressW = TEXTURE_ADDRESS_MODE::TEXTURE_ADDRESS_WRAP;
+                }
 
-                if (!internalState.bDoTextureFiltering) flags |= BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT;
-
-                bgfx::setTexture(idx, getUniform(shaderTextureBindings[idx], bgfx::UniformType::Sampler), handle, flags);
+                if (internalState.bDoTextureFiltering)
+                {
+                    FBShaderSamplers[idx].Desc.MinFilter = FILTER_TYPE::FILTER_TYPE_LINEAR;
+                    FBShaderSamplers[idx].Desc.MagFilter = FILTER_TYPE::FILTER_TYPE_LINEAR;
+                }
+                else
+                {
+                    FBShaderSamplers[idx].Desc.MinFilter = FILTER_TYPE::FILTER_TYPE_POINT;
+                    FBShaderSamplers[idx].Desc.MagFilter = FILTER_TYPE::FILTER_TYPE_POINT;
+                }
             }
         }
+
+        FBPSODesc.ResourceLayout.Variables = FBShaderVars;
+        FBPSODesc.ResourceLayout.NumVariables = _countof(FBShaderVars);
+        FBPSODesc.ResourceLayout.StaticSamplers = FBShaderSamplers;
+        FBPSODesc.ResourceLayout.NumStaticSamplers = _countof(FBShaderSamplers);
     }
 
     // Set state
     {
-        internalState.state = BGFX_STATE_MSAA | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
-
         switch (internalState.cullMode)
         {
-        case RendererCullMode::FRONT: internalState.state |= BGFX_STATE_CULL_CW;
-        case RendererCullMode::BACK: internalState.state |= BGFX_STATE_CULL_CCW;
+        case RendererCullMode::FRONT:
+            FBPSODesc.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE::CULL_MODE_FRONT;
+            break;
+        case RendererCullMode::BACK: 
+            FBPSODesc.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE::CULL_MODE_BACK;
+            break;
+        default:
+            FBPSODesc.GraphicsPipeline.RasterizerDesc.CullMode = CULL_MODE::CULL_MODE_NONE;
         }
 
         switch (internalState.blendMode)
         {
         case RendererBlendMode::BLEND_AVG:
-            internalState.state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-            internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA);
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = True;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOp = BLEND_OPERATION::BLEND_OPERATION_ADD;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOpAlpha = BLEND_OPERATION::BLEND_OPERATION_ADD;
+
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_INV_SRC_ALPHA;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_INV_SRC_ALPHA;
             break;
         case RendererBlendMode::BLEND_ADD:
-            internalState.state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-            internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ONE);
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = True;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOp = BLEND_OPERATION::BLEND_OPERATION_ADD;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOpAlpha = BLEND_OPERATION::BLEND_OPERATION_ADD;
+
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
             break;
         case RendererBlendMode::BLEND_SUB:
-            internalState.state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_REVSUB);
-            internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ONE);
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = True;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOp = BLEND_OPERATION::BLEND_OPERATION_REV_SUBTRACT;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOpAlpha = BLEND_OPERATION::BLEND_OPERATION_REV_SUBTRACT;
+
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
             break;
         case RendererBlendMode::BLEND_25P:
-            internalState.state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-            internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_ONE);
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = True;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOp = BLEND_OPERATION::BLEND_OPERATION_ADD;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOpAlpha = BLEND_OPERATION::BLEND_OPERATION_ADD;
+
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
             break;
         case RendererBlendMode::BLEND_NONE:
-            internalState.state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-            if (fancy_transparency) internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA);
-            else internalState.state |= BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE, BGFX_STATE_BLEND_ZERO);
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = True;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOp = BLEND_OPERATION::BLEND_OPERATION_ADD;
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendOpAlpha = BLEND_OPERATION::BLEND_OPERATION_ADD;
+
+            if (fancy_transparency)
+            {
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_INV_SRC_ALPHA;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_SRC_ALPHA;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_INV_SRC_ALPHA;
+            }
+            else
+            {
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlend = BLEND_FACTOR::BLEND_FACTOR_ONE;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlend = BLEND_FACTOR::BLEND_FACTOR_ZERO;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->SrcBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ONE;
+                FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->DestBlendAlpha = BLEND_FACTOR::BLEND_FACTOR_ZERO;
+            }
             break;
+        default:
+            FBPSODesc.GraphicsPipeline.BlendDesc.RenderTargets->BlendEnable = False;
         }
 
         switch (internalState.primitiveType)
         {
         case RendererPrimitiveType::PT_LINES:
-            internalState.state |= BGFX_STATE_PT_LINES;
+            FBPSODesc.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY::PRIMITIVE_TOPOLOGY_LINE_STRIP;
             break;
         case RendererPrimitiveType::PT_POINTS:
-            internalState.state |= BGFX_STATE_PT_POINTS;
+            FBPSODesc.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY::PRIMITIVE_TOPOLOGY_POINT_LIST;
+            break;
+        case RendererPrimitiveType::PT_TRIANGLES:
+            FBPSODesc.GraphicsPipeline.PrimitiveTopology = PRIMITIVE_TOPOLOGY::PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             break;
         }
 
-        if (internalState.bDoDepthTest) internalState.state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
+        if (internalState.bDoDepthTest) FBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthFunc = COMPARISON_FUNCTION::COMPARISON_FUNC_LESS_EQUAL;
+        else FBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthFunc = COMPARISON_FUNCTION::COMPARISON_FUNC_ALWAYS;
 
-        if (internalState.bDoDepthWrite) internalState.state |= BGFX_STATE_WRITE_Z;
+        BBPSODesc.GraphicsPipeline.DepthStencilDesc.DepthWriteEnable = internalState.bDoDepthWrite;
     }
-    bgfx::setState(internalState.state);
 
-    bgfx::submit(backendViewId, backendProgramHandles[backendViewId]);
+    {
+        // Create PSO and bind it
+        m_pDevice->CreatePipelineState(FBPSODesc, &m_pFBPSO);
+
+        setCommonUniforms();
+
+        m_pFBPSO->GetStaticVariableByName(SHADER_TYPE_VERTEX, "SConstants")->Set(m_pShaderConstants);
+        m_pFBPSO->GetStaticVariableByName(SHADER_TYPE_PIXEL, "SConstants")->Set(m_pShaderConstants);
+
+        // Create a shader resource binding object and bind all static resources in it
+        m_pFBPSO->CreateShaderResourceBinding(&m_pFBSRB, true);
+
+        viewData.TopLeftX = 0;
+        viewData.TopLeftY = 0;
+        viewData.Width = framebufferWidth;
+        viewData.Height = framebufferHeight;
+        viewData.MinDepth = 0;
+        viewData.MaxDepth = 1;
+
+        m_pImmediateContext->SetViewports(1, &viewData, viewData.Width, viewData.Height);
+
+        if (internalState.bDoScissorTest)
+        {
+            scissorData.left = scissorOffsetX;
+            scissorData.top = scissorOffsetY;
+            scissorData.right = scissorWidth + scissorData.left;
+            scissorData.bottom = scissorHeight + scissorData.top;
+
+            FBPSODesc.GraphicsPipeline.RasterizerDesc.ScissorEnable = True;
+            m_pImmediateContext->SetScissorRects(1, &scissorData, viewData.Width, viewData.Height);
+        }
+        else
+            FBPSODesc.GraphicsPipeline.RasterizerDesc.ScissorEnable = False;
+
+        // Bind Textures
+        {
+            uint idxMax = 3;
+
+            for (uint idx = 0; idx < idxMax; idx++)
+            {
+                uint rt = internalState.texHandlers[idx];
+
+                if (!internalState.bIsMovie && idx > 0) rt = 0;
+
+                m_pFBSRB->GetVariableByName(SHADER_TYPE_PIXEL, FBPSODesc.ResourceLayout.Variables[idx].Name)->Set(
+                    internalState.textureData[rt].m_pTexture->GetDefaultView(TEXTURE_VIEW_SHADER_RESOURCE)
+                );
+            }
+        }
+    }
+
+    // Set the pipeline state in the immediate context
+    m_pImmediateContext->SetPipelineState(m_pFBPSO);
+
+    // Commit shader resources. This call also sets the shaders in OpenGL backend.
+    m_pImmediateContext->CommitShaderResources(m_pFBSRB, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+
+    m_pImmediateContext->DrawIndexed(PSODrawAttrs);
+
+    m_pFBSRB.Release();
+    m_pFBPSO.Release();
 };
 
 void Renderer::show()
@@ -464,71 +661,82 @@ void Renderer::show()
 
     renderFrameBuffer();
 
-    bgfx::frame();
-
-    bgfx::dbgTextClear();
+    m_pSwapChain->Present(enable_vsync);
 }
 
 void Renderer::printText(uint16_t x, uint16_t y, uint color, const char* text)
 {
+    /*
     bgfx::dbgTextPrintf(
         x,
         y,
         color,
         text
     );
+    */
 }
 
-const bgfx::Caps* Renderer::getCaps()
+DeviceCaps Renderer::getCaps()
 {
-    return bgfx::getCaps();
-};
+    return m_pDevice->GetDeviceCaps();
+}
 
 void Renderer::bindVertexBuffer(struct nvertex* inVertex, uint inCount)
 {
-    if (bgfx::isValid(vertexBufferHandle)) bgfx::destroy(vertexBufferHandle);
+    BufferDesc VertBuffDesc;
+    BufferData VBData;
 
-    Vertex* vertices = new Vertex[inCount];
+    RendererShaderVertex* vertices = new RendererShaderVertex[inCount];
 
     for (uint idx = 0; idx < inCount; idx++)
     {
-        vertices[idx].x = inVertex[idx]._.x;
-        vertices[idx].y = inVertex[idx]._.y;
-        vertices[idx].z = inVertex[idx]._.z;
-        vertices[idx].w = ( std::isinf(inVertex[idx].color.w) ? 1.0f : inVertex[idx].color.w );
-        vertices[idx].bgra = inVertex[idx].color.color;
-        vertices[idx].u = inVertex[idx].u;
-        vertices[idx].v = inVertex[idx].v;
+        vertices[idx].pos = float4(inVertex[idx]._.x, inVertex[idx]._.y, inVertex[idx]._.z, (std::isinf(inVertex[idx].color.w) ? 1.0f : inVertex[idx].color.w));
+        vertices[idx].color = float4(inVertex[idx].color.b / 255.0f, inVertex[idx].color.g / 255.0f, inVertex[idx].color.r / 255.0f, inVertex[idx].color.a / 255.0f);
+        vertices[idx].texcoord = float2(inVertex[idx].u, inVertex[idx].v);
 
-        if (vertex_log && idx == 0) trace("%s: %u [XYZW(%f, %f, %f, %f), BGRA(%08x), UV(%f, %f)]\n", __func__, idx, vertices[idx].x, vertices[idx].y, vertices[idx].z, vertices[idx].w, vertices[idx].bgra, vertices[idx].u, vertices[idx].v);
+        if (vertex_log && idx == 0) trace("%s: %u [XYZW(%f, %f, %f, %f), BGRA(%f, %f, %f, %f), UV(%f, %f)]\n", __func__, idx, vertices[idx].pos.x, vertices[idx].pos.y, vertices[idx].pos.z, vertices[idx].pos.w, vertices[idx].color.b, vertices[idx].color.g, vertices[idx].color.r, vertices[idx].color.a, vertices[idx].texcoord.u, vertices[idx].texcoord.v);
         if (vertex_log && idx == 1) trace("%s: See the rest on RenderDoc.\n", __func__);
     }
 
-    vertexBufferHandle = bgfx::createVertexBuffer(
-        bgfx::copy(
-            vertices,
-            sizeof(Vertex) * inCount
-        ),
-        vertexLayout
-    );
+    VertBuffDesc.Name = "Vertex Data";
+    VertBuffDesc.Usage = USAGE_STATIC;
+    VertBuffDesc.BindFlags = BIND_VERTEX_BUFFER;
+    VertBuffDesc.uiSizeInBytes = sizeof(RendererShaderVertex) * inCount;
 
-    bgfx::setVertexBuffer(0, vertexBufferHandle);
+    VBData.pData = vertices;
+    VBData.DataSize = VertBuffDesc.uiSizeInBytes;
+
+    m_pPSOVertexBuffer.Release();
+    m_pDevice->CreateBuffer(VertBuffDesc, &VBData, &m_pPSOVertexBuffer);
+
+    Uint32   offset = 0;
+    IBuffer* pBuffs[] = { m_pPSOVertexBuffer };
+    m_pImmediateContext->SetVertexBuffers(0, 1, pBuffs, &offset, RESOURCE_STATE_TRANSITION_MODE_TRANSITION, SET_VERTEX_BUFFERS_FLAG_RESET);
 
     delete[] vertices;
 };
 
 void Renderer::bindIndexBuffer(word* inIndex, uint inCount)
 {
-    if (bgfx::isValid(indexBufferHandle)) bgfx::destroy(indexBufferHandle);
+    BufferDesc IndBuffDesc;
+    BufferData IBData;
 
-    indexBufferHandle = bgfx::createIndexBuffer(
-        bgfx::copy(
-            inIndex,
-            sizeof(word) * inCount
-        )
-    );
+    IndBuffDesc.Name = "Index Data";
+    IndBuffDesc.Usage = USAGE_STATIC;
+    IndBuffDesc.BindFlags = BIND_INDEX_BUFFER;
+    IndBuffDesc.uiSizeInBytes = sizeof(word) * inCount;
 
-    bgfx::setIndexBuffer(indexBufferHandle);
+    IBData.pData = inIndex;
+    IBData.DataSize = IndBuffDesc.uiSizeInBytes;
+
+    PSODrawAttrs.IndexType = VT_UINT16;
+    PSODrawAttrs.NumIndices = inCount;
+
+    m_pPSOIndexBuffer.Release();
+
+    m_pDevice->CreateBuffer(IndBuffDesc, &IBData, &m_pPSOIndexBuffer);
+
+    m_pImmediateContext->SetIndexBuffer(m_pPSOIndexBuffer, 0, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 };
 
 void Renderer::setScissor(uint16_t x, uint16_t y, uint16_t width, uint16_t height)
@@ -541,92 +749,80 @@ void Renderer::setScissor(uint16_t x, uint16_t y, uint16_t width, uint16_t heigh
 
 void Renderer::setClearFlags(bool doClearColor, bool doClearDepth)
 {
-    uint16_t clearFlags = BGFX_CLEAR_NONE;
+    if (doClearColor) m_pImmediateContext->ClearRenderTarget(m_pFBColorTexture, internalState.clearColorValue.Data(), RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 
-    if (doClearColor)
-        clearFlags |= BGFX_CLEAR_COLOR;
-
-    if (doClearDepth)
-        clearFlags |= BGFX_CLEAR_DEPTH;
-
-    bgfx::setViewClear(backendViewId, clearFlags, internalState.clearColorValue, 1.0f);
+    if (doClearDepth) m_pImmediateContext->ClearDepthStencil(m_pFBDepthTexture, CLEAR_DEPTH_FLAG | CLEAR_STENCIL_FLAG, 1.0f, 0, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
 }
 
 void Renderer::setBackgroundColor(float r, float g, float b, float a)
 {
-    internalState.clearColorValue = createBGRA(r, g, b, a);
+    internalState.clearColorValue = float4(b, g, r, a);
 }
 
 uint Renderer::createTexture(uint8_t* data, size_t width, size_t height, int stride, RendererTextureType type, bool generateMips)
 {
-    bgfx::TextureHandle ret;
+    int texId = -1;
 
-    bgfx::TextureFormat::Enum texFormat = bgfx::TextureFormat::R8;
-    bimg::TextureFormat::Enum imgFormat = bimg::TextureFormat::R8;
+    TextureSubResData tSub;
+    TextureData tData;
+    TextureDesc tDesc;
 
-    if (type == RendererTextureType::BGRA)
+    for (uint idx = 0; idx < internalState.textureData.size(); idx++)
     {
-        texFormat = bgfx::TextureFormat::BGRA8;
-        imgFormat = bimg::TextureFormat::BGRA8;
-    }
-
-    bimg::TextureInfo texInfo;
-    bimg::imageGetSize(&texInfo, width, height, 0, false, false, 1, imgFormat);
-
-    // If the texture we are going to create does not fit in memory, return an empty one.
-    // Will prevent the game from crashing, while allowing the player to not loose its progress.
-    if ((texInfo.storageSize + get_ram_size()) > pow(1024, 3))
-    {
-        ret = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::BGRA8);
-    }
-    else
-    {
-        const bgfx::Memory* mem = bgfx::copy(data, texInfo.storageSize);
-
-        ret = bgfx::createTexture2D(
-            width,
-            height,
-            false,
-            1,
-            texFormat,
-            BGFX_TEXTURE_NONE | generateMips ? BGFX_SAMPLER_MIP_POINT : BGFX_SAMPLER_NONE,
-            stride > 0 ? NULL : mem
-        );
-
-        if (stride > 0)
-            bgfx::updateTexture2D(
-                ret,
-                0,
-                0,
-                0,
-                0,
-                width,
-                height,
-                mem,
-                stride
-            );
-    }
-
-    return ret.idx;
-};
-
-void Renderer::deleteTexture(uint16_t rt)
-{
-    if (rt > 0)
-    {
-        bgfx::TextureHandle handle = { rt };
-
-        if (bgfx::isValid(handle)) {
-            bgfx::destroy(handle);
+        if (internalState.textureData[idx].data == nullptr)
+        {
+            texId = idx;
+            break;
         }
     }
+
+    if (texId == -1)
+    {
+        internalState.textureData.push_back(RendererTexture());
+        texId = internalState.textureData.size() - 1;
+    }
+
+    size_t size = width * height * (type == RendererTextureType::BGRA ? 4 : 1);
+    internalState.textureData[texId].data = new uint8_t[size]{ 0 };
+
+    if (data != nullptr) ::memcpy(internalState.textureData[texId].data, data, size * sizeof(uint8_t));
+
+    tSub.pData = internalState.textureData[texId].data;
+    tSub.Stride = stride;
+    tSub.DepthStride = 0;
+
+    tData.NumSubresources = 1;
+    tData.pSubResources = &tSub;
+
+    //tDesc.MiscFlags = MISC_TEXTURE_FLAG_GENERATE_MIPS;
+    tDesc.Type = RESOURCE_DIM_TEX_2D;
+    tDesc.Width = width;
+    tDesc.Height = height;
+    tDesc.Format = (type == RendererTextureType::BGRA ? TEX_FORMAT_RGBA8_UNORM : TEX_FORMAT_R8_UNORM);
+    tDesc.Usage = USAGE_STATIC;
+    tDesc.BindFlags = BIND_SHADER_RESOURCE;
+
+    m_pDevice->CreateTexture(tDesc, &tData, &internalState.textureData[texId].m_pTexture);
+
+    return texId;
 };
 
-void Renderer::useTexture(uint rt, uint slot)
+void Renderer::deleteTexture(uint texId)
 {
-    if (rt > 0)
+    if (texId > 0)
     {
-        internalState.texHandlers[slot] = rt;
+        delete[] internalState.textureData[texId].data;
+        internalState.textureData[texId].data = nullptr;
+
+        internalState.textureData[texId].m_pTexture.Release();
+    }
+};
+
+void Renderer::useTexture(uint texId, uint slot)
+{
+    if (texId > 0)
+    {
+        internalState.texHandlers[slot] = texId;
         isTexture(true);
     }
     else
@@ -638,13 +834,21 @@ void Renderer::useTexture(uint rt, uint slot)
 
 uint Renderer::blitTexture(uint x, uint y, uint width, uint height)
 {
-    uint64_t samplerFlags = BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT;
+    uint dstTex = createTexture(nullptr, framebufferWidth > width ? width : framebufferWidth, framebufferHeight > height ? height : framebufferHeight, 0);
     
-    bgfx::TextureHandle ret = bgfx::createTexture2D(framebufferWidth > width ? width : framebufferWidth, framebufferHeight > height ? height : framebufferHeight, false, 1, bgfx::TextureFormat::RGBA8, BGFX_TEXTURE_BLIT_DST | samplerFlags);
-    bgfx::blit(RendererView::BLIT, ret, 0, 0, bgfx::getTexture(backendFrameBuffer), x, y);
-    bgfx::touch(RendererView::BLIT);
+    CopyTextureAttribs CopyAttribs(m_pFBColorTexture->GetTexture(), RESOURCE_STATE_TRANSITION_MODE_TRANSITION, internalState.textureData[dstTex].m_pTexture, RESOURCE_STATE_TRANSITION_MODE_TRANSITION);
+    Box CopyBox;
 
-    return ret.idx;
+    CopyBox.MinX = 0;
+    CopyBox.MaxX = x;
+    CopyBox.MinY = 0;
+    CopyBox.MaxY = y;
+
+    CopyAttribs.pSrcBox = &CopyBox;
+
+    m_pImmediateContext->CopyTexture(CopyAttribs);
+
+    return dstTex;
 };
 
 void Renderer::isMovie(bool flag)
@@ -732,26 +936,26 @@ void Renderer::doScissorTest(bool flag)
 
 void Renderer::setWireframeMode(bool flag)
 {
-    if (flag) bgfx::setDebug(BGFX_DEBUG_WIREFRAME);
+    internalState.bUseWireframe = flag;
 };
 
 void Renderer::setWorldView(struct matrix *matrix)
 {
-    ::memcpy(internalState.worldViewMatrix, &matrix->m[0][0], sizeof(matrix->m));
+    ::memcpy(&internalState.worldViewMatrix, &matrix->m[0][0], sizeof(matrix->m));
 
     if (uniform_log) printMatrix(__func__, internalState.worldViewMatrix);
 };
 
 void Renderer::setD3DViweport(struct matrix* matrix)
 {
-    ::memcpy(internalState.d3dViewMatrix, &matrix->m[0][0], sizeof(matrix->m));
+    ::memcpy(&internalState.d3dViewMatrix, &matrix->m[0][0], sizeof(matrix->m));
 
     if (uniform_log) printMatrix(__func__, internalState.d3dViewMatrix);
 };
 
 void Renderer::setD3DProjection(struct matrix* matrix)
 {
-    ::memcpy(internalState.d3dProjectionMatrix, &matrix->m[0][0], sizeof(matrix->m));
+    ::memcpy(&internalState.d3dProjectionMatrix, &matrix->m[0][0], sizeof(matrix->m));
 
     if (uniform_log) printMatrix(__func__, internalState.d3dProjectionMatrix);
 };
