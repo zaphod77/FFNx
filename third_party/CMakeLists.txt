@@ -1,0 +1,5 @@
+add_subdirectory(ffmpeg)
+add_subdirectory(vgmstream)
+add_subdirectory(SisterRay)
+add_subdirectory(bgfx)
+add_subdirectory(json)
