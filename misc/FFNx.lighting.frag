@@ -32,6 +32,7 @@ uniform vec4 FSAlphaFlags;
 uniform vec4 FSMiscFlags;
 uniform vec4 FSHDRFlags;
 uniform vec4 FSTexFlags;
+uniform vec4 WMFlags;
 uniform vec4 FSMovieFlags;
 
 uniform vec4 lightingSettings;
@@ -108,6 +109,8 @@ uniform vec4 gameScriptedLightColor;
 
 #define isPbrTextureEnabled lightingSettings.x > 0.0
 #define isEnvironmentLightingEnabled lightingSettings.y > 0.0
+
+#define isFogEnabled WMFlags.y > 0.0
 
 #define isNmlTextureLoaded FSTexFlags.x > 0.0
 #define isPbrTextureLoaded FSTexFlags.y > 0.0
@@ -408,6 +411,26 @@ void main()
         else
         {
             gl_FragColor = vec4(luminance + indirectLuminance, color.a);
+        }
+
+
+        if (isFogEnabled)
+        {
+            float d = sqrt(dot(v_position0.xyz, v_position0.xyz));
+            float s0 = 0;
+            float e0 = 10000;
+
+            //float t = saturate((d - s0) / e0);
+
+            float density = 0.00025;
+            float t = 1 / exp (d * density);
+
+            vec3 fogColor0 = vec3(0.1, 0.1, 0.2);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb * fogColor0, gl_FragColor.rgb, t);
+
+            float e1 = 15000;
+            float t2 = 1.0 - saturate((d - e0) / e1);
+            gl_FragColor.rgb *= t2;
         }
     }
 

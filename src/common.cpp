@@ -57,6 +57,7 @@
 
 #include "ff7/widescreen.h"
 #include "ff7/time.h"
+#include "ff7/world/world.h"
 
 #include "ff8/vram.h"
 #include "ff8/vibration.h"
@@ -878,6 +879,9 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 				// Init Lighting
 				if (!ff8 && enable_lighting) lighting.init();
 
+				// Init External World
+    			if (!ff8 && enable_external_mesh) ff7::world::world.init();
+
 				// enable verbose logging for FFMpeg
 				av_log_set_level(AV_LOG_VERBOSE);
 				av_log_set_callback(ffmpeg_log_callback);
@@ -998,6 +1002,13 @@ void common_flip(struct game_obj *game_object)
 
 	// Update RAM usage info
 	GlobalMemoryStatusEx(&last_ram_state);
+
+	if(!ff8 && enable_external_mesh)
+	{
+		const int worldmap_type = *ff7_externals.world_map_type_E045E8;
+		newRenderer.setSphericalWorldRate(mode->driver_mode == MODE_WORLDMAP);
+		newRenderer.setFogEnabled(mode->driver_mode == MODE_WORLDMAP && worldmap_type == ff7::world::UNDERWATER);
+	}
 
 	// Draw with lighting
 	if (!ff8 && enable_lighting) lighting.draw(game_object);

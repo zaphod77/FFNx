@@ -43,6 +43,9 @@
 #include "gl.h"
 #include "overlay.h"
 
+#define CGLTF_IMPLEMENTATION
+#include "cgltf.h"
+
 #define FFNX_RENDERER_INVALID_HANDLE { 0 }
 
 enum RendererInterpolationQualifier {
@@ -93,6 +96,52 @@ enum RendererTextureType
 {
     BGRA = 0,
     YUV
+};
+
+enum RendererUniform
+{
+    VS_FLAGS = 0,
+    FS_ALPHA_FLAGS,
+    FS_MISC_FLAGS,
+    FS_HDR_FLAGS,
+    FS_TEX_FLAGS,
+    FS_MOVIE_FLAGS,
+    WM_FLAGS,
+    TIME_COLOR,
+    TIME_DATA,
+    D3D_VIEWPORT,
+    D3D_PROJECTION,
+    WORLD_VIEW,
+    NORMAL_MATRIX,
+    VIEW_MATRIX,
+    INV_VIEW_MATRIX,
+    GAME_LIGHTING_FLAGS,
+    GAME_GLOBAL_LIGHT_COLOR,
+    GAME_LIGHT_COLOR1,
+    GAME_LIGHT_COLOR2,
+    GAME_LIGHT_COLOR3,
+    GAME_LIGHT_DIR1,
+    GAME_LIGHT_DIR2,
+    GAME_LIGHT_DIR3,
+    GAME_SCRIPTED_LIGHT_COLOR,
+
+    LIGHTING_SETTINGS,
+    LIGHT_DIR_DATA,
+    LIGHT_DATA,
+    AMBIENT_LIGHT_DATA,
+    SHADOW_DATA,
+    FIELD_SHADOW_DATA,
+    MATERIAL_DATA,
+    MATERIAL_SCALE_DATA,
+    LIGHTING_DEBUG_DATA,
+    IBL_DATA,
+    LIGHT_VIEW_PROJ_MATRIX,
+    LIGHT_VIEW_PROJ_TEX_MATRIX,
+    LIGHT_INV_VIEW_PROJ_TEX_MATRIX,
+    VIEW_OFFSET_MATRIX,
+    INV_VIEW_OFFSET_MATRIX,
+
+    COUNT,
 };
 
 enum ColorMatrixType{
@@ -187,8 +236,68 @@ struct RendererCallbacks : public bgfx::CallbackI {
     virtual void captureFrame(const void* _data, uint32_t _size) override {};
 };
 
+// Vertex data structure
+struct Vertex
+{
+    float x;
+    float y;
+    float z;
+    float w;
+    uint32_t bgra;
+    float u;
+    float v;
+    float nx;
+    float ny;
+    float nz;
+};
+
+struct Material
+{
+    std::vector<bgfx::TextureHandle> baseColorTexHandles;
+    std::vector<bgfx::TextureHandle> normalTexHandles;
+    std::vector<bgfx::TextureHandle> pbrTexHandles;
+    int texIndex = 0;
+    int frameInterval = 0;
+};
+
+struct Shape
+{
+    std::vector<nvertex> vertices;
+    std::vector<vector3<float>> normals;
+    std::vector<uint32_t> indices;
+    vector3<float> min;
+    vector3<float> max;
+    Material* pMaterial = nullptr;
+    bool isDoubleSided = false;
+};
+
+class Model
+{
+public:
+    bool importExternalMeshGltfFile(char* file_path, char* tex_path);
+    uint32_t fillExternalMeshVertexBuffer(struct nvertex* inVertex, struct vector3<float>* normals, uint32_t inCount);
+    uint32_t fillExternalMeshIndexBuffer(uint32_t* inIndex, uint32_t inCount);
+    void updateExternalMeshBuffers();
+    void bindField3dVertexBuffer(uint32_t offset, uint32_t inCount);
+    void bindField3dIndexBuffer(uint32_t offset, uint32_t inCount);
+    void clearExternalMesh3dBuffers();
+    void unloadExternalMesh();
+    
+    std::vector<Shape> shapes;
+	std::map<std::string, Material> materials;
+
+private:
+    std::vector<Vertex> vertexBufferData;
+    bgfx::DynamicVertexBufferHandle vertexBufferHandle = BGFX_INVALID_HANDLE;
+
+    std::vector<uint32_t> indexBufferData;
+    bgfx::DynamicIndexBufferHandle indexBufferHandle = BGFX_INVALID_HANDLE;   
+};
+
 class Renderer {
 private:
+    friend class Lighting;
+
     // Current renderer view
     enum RendererProgram {
         FLAT = 0,
@@ -201,21 +310,6 @@ private:
         OVERLAY,
         BLIT,
         COUNT
-    };
-
-    // Vertex data structure
-    struct Vertex
-    {
-        float x;
-        float y;
-        float z;
-        float w;
-        uint32_t bgra;
-        float u;
-        float v;
-        float nx;
-        float ny;
-        float nz;
     };
 
     struct RendererState
@@ -237,12 +331,14 @@ private:
         bool bIsFBTexture = false;
         bool bIsTexture = false;
         bool bDoTextureFiltering = false;
+        bool bDoMirrorTextureWrap = false;
         bool bModulateAlpha = false;
         bool bIsMovie = false;
         bool bIsMovieFullRange = false;
         bool bIsMovieYUV = false;
         bool bIsExternalTexture = false;
         bool bIsHDR = false;
+        bool bIsFogEnabled = false;
         ColorMatrixType bIsMovieColorMatrix = COLORMATRIX_BT601;
         ColorGamutType bIsMovieColorGamut = COLORGAMUT_SRGB;
         ColorGamutType bIsOverallColorGamut = COLORGAMUT_SRGB;
@@ -257,6 +353,7 @@ private:
         std::vector<float> FSMiscFlags;
         std::vector<float> FSHDRFlags;
         std::vector<float> FSTexFlags;
+        std::vector<float> WMFlags;
         std::vector<float> FSMovieFlags;
 
         std::array<float, 4> TimeColor;
@@ -278,6 +375,10 @@ private:
         float invViewMatrix[16];
         float worldViewMatrix[16];
         float normalMatrix[16];
+
+        float wmViewMatrix[16];
+
+        float SphericalWorldRate = 1.0f;
 
         uint32_t clearColorValue;
 
@@ -344,7 +445,8 @@ private:
 
     bgfx::VertexLayout vertexLayout;
 
-    std::map<std::string,uint16_t> bgfxUniformHandles;
+    std::array<bgfx::UniformHandle, RendererUniform::COUNT> bgfxUniformHandles;
+    std::array<bgfx::UniformHandle, RendererTextureSlot::COUNT> bgfxTexUniformHandles;
 
     RendererState internalState;
 
@@ -367,14 +469,13 @@ private:
     uint16_t scalingFactor = 0;
 
     uint32_t createBGRA(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
-    void setCommonUniforms();
-    void setLightingUniforms();
     bgfx::RendererType::Enum getUserChosenRenderer();
     void updateRendererShaderPaths();
     bgfx::ShaderHandle getShader(const char* filePath);
 
-    bgfx::UniformHandle getUniform(std::string uniformName, bgfx::UniformType::Enum uniformType);
-    bgfx::UniformHandle setUniform(const char* uniformName, bgfx::UniformType::Enum uniformType, const void* uniformValue);
+    bgfx::UniformHandle createUniform(std::string uniformName, bgfx::UniformType::Enum uniformType);
+    bgfx::UniformHandle setUniform(RendererUniform uniform, const void* uniformValue);
+
     void destroyUniforms();
     void destroyAll();
 
@@ -390,7 +491,6 @@ private:
     void calcBackendProjMatrix();
     void prepareFramebuffer();
 
-    void bindTextures();
     void AssignGamutLUT();
 
     bx::DefaultAllocator defaultAllocator;
@@ -400,6 +500,14 @@ private:
     bool doCaptureFrame = false;
 
     bgfx::Init bgfxInit;
+
+    Model externalWorldMapModel;
+    Model externalSnakeModel;
+    Model externalCloudsModel;
+    Model externalMeteorModel;
+
+    float f_offset = 0.003f;
+    float n_offset = 0.0f;
 
 public:
     std::string currentRenderer;
@@ -418,10 +526,11 @@ public:
     void shutdown();
 
     void clearShadowMap();
-    void drawToShadowMap();
-    void drawWithLighting(bool isCastShadow);
+    void drawToShadowMap(bool uniformsAlreadyAttached = false, bool texturesAlreadyAttached = false);
+    void drawWithLighting(bool uniformsAlreadyAttached = false, bool texturesAlreadyAttached = false, bool keepBindings = false);
     void drawFieldShadow();
-    void draw(bool uniformsAlreadyAttached = false);
+    void draw(bool uniformsAlreadyAttached = false, bool texturesAlreadyAttached = false, bool keepBindings = false);
+    void discardAllBindings();
     void drawOverlay();
     void drawFFNxLogo(float fade);
     void show();
@@ -433,9 +542,14 @@ public:
 
     const bgfx::Caps* getCaps();
     const bgfx::Stats* getStats();
+    const bgfx::VertexLayout& GetVertexLayout();
 
     void bindVertexBuffer(struct nvertex* inVertex, vector3<float>* normals, uint32_t inCount);
     void bindIndexBuffer(WORD* inIndex, uint32_t inCount);
+
+    void setCommonUniforms();
+    void setLightingUniforms();
+    void bindTextures();
 
     void setScissor(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
     void setClearFlags(bool doClearColor = false, bool doClearDepth = false);
@@ -465,6 +579,7 @@ public:
     void isYUV(bool flag = false);
     void doModulateAlpha(bool flag = false);
     void doTextureFiltering(bool flag = false);
+    void doMirrorTextureWrap(bool flag = false);
     void isExternalTexture(bool flag = false);
     bool isHDR();
     void setColorMatrix(ColorMatrixType cmtype = COLORMATRIX_BT601);
@@ -493,9 +608,10 @@ public:
     // Viewport
     void setViewMatrix(struct matrix* matrix);
     float* getViewMatrix();
+    float* getInvViewMatrix();
     bool isViewMatrixSet();
     void resetViewMatrixFlag();
-    void setWorldViewMatrix(struct matrix* matrix);
+    void setWorldViewMatrix(struct matrix* matrix, bool calculateNormalMatrix = true);
     void setD3DViweport(struct matrix* matrix);
     void setD3DProjection(struct matrix* matrix);
 
@@ -512,6 +628,18 @@ public:
     void setTimeFilterEnabled(bool flag = false);
     bool isTimeFilterEnabled();
 
+    // Worldmap
+    void setSphericalWorldRate(float value = 1.0f);
+    void loadWorldMapExternalMesh();
+    bool drawWorldMapExternalMesh();
+    void loadSnakeExternalMesh();
+    bool drawSnakeExternalMesh();
+    void loadCloudsExternalMesh();
+    bool drawCloudsExternalMesh();
+    void loadMeteorExternalMesh();
+    bool drawMeteorExternalMesh();
+    void setFogEnabled(bool flag = false);
+    
     // Game lighting
     void setGameLightData(light_data* lightdata = nullptr);
 };

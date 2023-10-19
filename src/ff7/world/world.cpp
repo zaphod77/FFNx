@@ -27,9 +27,12 @@
 #include "../../sfx.h"
 
 #include "defs.h"
+#include "world.h"
 
 namespace ff7::world
 {
+    World world;
+
     std::map<uint32_t, bool> do_decrease_wait_frames;
 
     bool world_has_old_highwind()
@@ -175,5 +178,47 @@ namespace ff7::world
 
         // Wait frames decrease delayed
         replace_call_function(ff7_externals.run_world_event_scripts + 0xC7, run_world_script_system_operations);
+    }
+
+    void World::init()
+    {
+        loadConfig();
+    }
+
+    void World::loadConfig()
+    {
+        char _fullpath[MAX_PATH];
+        sprintf(_fullpath, "%s/%s/world/config.toml", basedir, external_mesh_path.c_str());
+
+        try
+        {
+            config = toml::parse_file(_fullpath);
+        }
+        catch (const toml::parse_error &err)
+        {
+            config = toml::parse("");
+        }
+    }
+
+    int World::getTextureCount(std::string tex_name)
+    {
+        auto node = config[tex_name];
+        if(node)
+        {
+            if (auto sub_node = node["num_textures"]) return sub_node.value_or(0);
+        }
+
+        return 1;
+    }
+
+    int World::getFrameInterval(std::string tex_name)
+    {
+        auto node = config[tex_name];
+        if(node)
+        {
+            if (auto sub_node = node["frame_interval"]) return sub_node.value_or(0);
+        }
+
+        return 0;
     }
 }

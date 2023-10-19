@@ -123,6 +123,16 @@ enable_time_cycle = false
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~
 external_time_cycle_path = "time"
 
+#[EXTERNAL MESH]
+# Enable external meshes.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~
+enable_external_mesh = false
+
+#[EXTERNAL MESH PATH]
+# Path for external mesh files.
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~
+external_mesh_path = "mesh"
+
 #[HDR]
 # This flag will set the brightness level that SDR "white" is rendered at within an HDR monitor.
 # By default is set to 0, which means to attempt autodetection of the correct value for your monitor via software.

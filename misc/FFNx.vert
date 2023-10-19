@@ -41,12 +41,24 @@ uniform vec4 gameLightDir3;
 uniform vec4 gameScriptedLightColor;
 
 uniform vec4 VSFlags;
+uniform vec4 WMFlags;
+
 #define isTLVertex VSFlags.x > 0.0
 #define blendMode VSFlags.y
 #define isFBTexture VSFlags.z > 0.0
 
+#define isApplySphericalWorld WMFlags.x > 0.0
+
 #define gameLightingMode gameLightingFlags.x
 #define GAME_LIGHTING_PER_VERTEX 1
+
+#define cplx vec2
+#define cplx_new(re, im) vec2(re, im)
+#define cplx_re(z) z.x
+#define cplx_im(z) z.y
+#define cplx_exp(z) (exp(z.x) * cplx_new(cos(z.y), sin(z.y)))
+#define cplx_scale(z, scalar) (z * scalar)
+#define cplx_abs(z) (sqrt(z.x * z.x + z.y * z.y))
 
 void main()
 {
@@ -64,7 +76,30 @@ void main()
     }
     else
     {
-        pos = mul(mul(d3dViewport,mul(d3dProjection,worldView)), vec4(pos.xyz, 1.0));
+        vec4 v_position0 = mul(worldView, vec4(pos.xyz, 1.0));
+
+        if (isApplySphericalWorld)
+        {
+            float rp = -300000 * WMFlags.x;
+
+            /*vec2 planedir = normalize(vec2(v_position0.x, v_position0.z));
+            vec2 plane = vec2(v_position0.y + rp, sqrt((v_position0.x) * (v_position0.x) + (v_position0.z) * (v_position0.z)));
+            vec2 circle = plane.x * vec2(cos(plane.y / rp), sin(plane.y / rp)) - vec2(rp, 0);
+            pos = vec4(circle.y * planedir.x, circle.x, circle.y * planedir.y, 1.0);*/
+
+            vec2 planedir = normalize(vec2(v_position0.x, v_position0.z));
+            cplx plane = cplx_new(v_position0.y, sqrt((v_position0.x) * (v_position0.x) + (v_position0.z) * (v_position0.z)));
+            cplx circle = rp * cplx_exp(cplx_scale(plane, 1.0 / rp)) - cplx_new(rp, 0);
+            pos.x = cplx_im(circle) * planedir.x;
+            pos.z = cplx_im(circle) * planedir.y;
+            pos.y = cplx_re(circle);
+        }
+        else
+        {
+            pos = v_position0;
+        }
+
+        pos = mul(mul(d3dViewport, d3dProjection), vec4(pos.xyz, 1.0));
         v_normal0 = mul(normalMatrix, vec4(a_normal, 0.0)).xyz;
 
         // In this default shader, lighting is applied in gamma space so that it does better match the original lighting

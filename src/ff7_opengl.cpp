@@ -325,11 +325,71 @@ void ff7_init_hooks(struct game_obj *_game_object)
 	replace_function(ff7_externals.get_gamepad, ff7_get_gamepad);
 	replace_function(ff7_externals.update_gamepad_status, ff7_update_gamepad_status);
 
-	// #####################
-	// control battle camera
-	// #####################
-	if(enable_analogue_controls)
+	// ###########################
+	// control battle/world camera
+	// ###########################
+	if(enable_analogue_controls) {
 		replace_call_function(ff7_externals.battle_sub_42D992 + 0xFB, ff7::battle::update_battle_camera);
+	}
+
+	if (enable_external_mesh)
+	{
+		replace_function(ff7_externals.world_update_camera_74E8CE, ff7::world::update_world_camera);
+		replace_function(ff7_externals.world_update_player_74EA48, ff7::world::update_player_and_handle_input);
+		
+		replace_call_function(ff7_externals.world_mode_loop_sub_74DB8C + 0x296, ff7::world::init_load_wm_bot_blocks);
+		replace_call_function(ff7_externals.world_exit_74BD77 + 0x11, ff7::world::destroy_graphics_objects);
+
+		// Disable Z-axis camera rotation
+		replace_function(ff7_externals.world_sub_74D319, ff7::world::get_camera_rotation_z);
+
+		// Expand meteor quad size to render the top part
+		patch_code_char(ff7_externals.world_submit_draw_clouds_and_meteor_7547A6 + 0x205, 0x7F);
+		patch_code_char(ff7_externals.world_submit_draw_clouds_and_meteor_7547A6 + 0x217, 0x0);
+
+		// Replace original world rendering
+		patch_code_dword(ff7_externals.world_init_load_map_meshes_graphics_objects_75A283 + 0xA7, (DWORD)&ff7::world::wm0_overworld_draw_all);
+		replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0xF8, ff7::world::wm0_overworld_draw_clouds);
+		replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x10A, ff7::world::wm0_overworld_draw_meteor);
+		patch_code_dword(ff7_externals.world_init_load_map_meshes_graphics_objects_75A283 + 0xDF, (DWORD)&ff7::world::wm2_underwater_draw_all);
+		patch_code_dword(ff7_externals.world_init_load_map_meshes_graphics_objects_75A283 + 0x117, (DWORD)&ff7::world::wm3_snowstorm_draw_all);
+
+		// Disable original world spherical transformation
+		memset_code(ff7_externals.world_sub_75F0AD + 0xFA, 0x90, 3);
+		memset_code(ff7_externals.world_sub_75F0AD + 0x187, 0x90, 3);
+		memset_code(ff7_externals.world_sub_75F0AD + 0x1A5, 0x90, 3);
+
+		// Disable world models vertical movement
+		replace_function(ff7_externals.world_sub_762F9A, ff7::world::world_sub_762F9A);
+
+		// Modify projection matrix to increase view frustrum far plane
+		replace_call_function((uint32_t)ff7_externals.engine_apply_4x4_matrix_product_with_game_obj_matrix_67D2BF + 0x16, ff7::world::engine_apply_4x4_matrix_product_between_matrices);
+		
+		replace_function(ff7_externals.world_sub_75C0FD, ff7::world::world_draw_effects);		
+
+		// Remove world meshes draw calls by jumping to end of loop
+		patch_code_byte((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x32, 0x76);
+		patch_code_byte((uint32_t)ff7_externals.world_wm2_underwater_draw_all_74C3F0 + 0x32, 0x2D);
+		patch_code_byte((uint32_t)ff7_externals.world_wm3_snowstorm_draw_all_74C589 + 0x32, 0x2D);
+
+		// Disable model culling
+		//memset_code(ff7_externals.world_draw_all_3d_model_74C6B0 + 0x84, 0x90, 6);
+
+		//patch_code_char(0x7631D2 + 0x3, 0x1);
+
+		replace_function(ff7_externals.world_submit_draw_clouds_and_meteor_7547A6, ff7::world::world_submit_draw_meteor_and_clouds_7547A6);
+
+		// Disable show targets with R2 in battles
+		memset_code(0x6D8C75 + 0xA8, 0x90, 29);
+		
+		//replace_function(0x762F9A, ff7::world::sub_762F9A);
+		
+		// Disable shadow draw call
+		if (enable_lighting)
+		{
+			replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x13B, ff7::world::draw_shadow);
+		}
+	}
 
 	//######################
 	// menu rendering fix
@@ -351,9 +411,9 @@ void ff7_init_hooks(struct game_obj *_game_object)
 		replace_call_function(ff7_externals.battle_draw_text_ui_graphics_objects_call, ff7::battle::draw_ui_graphics_objects_wrapper);
 		replace_call_function(ff7_externals.battle_draw_box_ui_graphics_objects_call, ff7::battle::draw_ui_graphics_objects_wrapper);
 
-		replace_call_function(ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x175, ff7::world::wm0_draw_minimap_quad_graphics_object);
-		replace_call_function(ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x1BE, ff7::world::wm0_draw_world_effects_1_graphics_object);
-		replace_call_function(ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x208, ff7::world::wm0_draw_minimap_points_graphics_object);
+		replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x175, ff7::world::wm0_draw_minimap_quad_graphics_object);
+		replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x1BE, ff7::world::wm0_draw_world_effects_1_graphics_object);
+		replace_call_function((uint32_t)ff7_externals.world_wm0_overworld_draw_all_74C179 + 0x208, ff7::world::wm0_draw_minimap_points_graphics_object);
 	}
 
 	if (game_lighting != GAME_LIGHTING_ORIGINAL)
