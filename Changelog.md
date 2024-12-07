@@ -1,3 +1,7 @@
+## FF7
+
+ Core: Fix crash when loading external field fiel chunks on certain fields exposed by Shinra Archaeology Cut.
+ 
 # Next
 
 - Full commit list since last stable release: https://github.com/julianxhokaxhiu/FFNx/compare/1.21.1...master
