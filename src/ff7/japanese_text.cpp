@@ -486,7 +486,7 @@ __int16 field_submit_draw_text_640x480_6E706D_jp(
   __int16 offset_u_in_byte; // [esp+C8h] [ebp-8h]
   float character_u_width_in_byte; // [esp+CCh] [ebp-4h]
 
-  bool kanjiDetected = false;
+  // bool kanjiDetected = false; //why continue, and then skip wha'ts notrmally done in default when you can just break???
   int charWidth = 16;
   int leftPadding = 0;
 
@@ -515,105 +515,111 @@ __int16 field_submit_draw_text_640x480_6E706D_jp(
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object = ff7_externals.menu_jafont_2_graphics_object;
-          kanjiDetected = true;
+          // kanjiDetected = true; // no need for this.
           charWidth = charWidthData[1][*buffer_text] & 0x1F;
           leftPadding = charWidthData[1][*buffer_text] >> 5;
-          continue;
+          // continue; // again shoudl have just used break instead.
+          break;
         case 0xFBu:
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object = ff7_externals.menu_jafont_3_graphics_object;
-          kanjiDetected = true;
+          // kanjiDetected = true;
           charWidth = charWidthData[2][*buffer_text] & 0x1F;
           leftPadding = charWidthData[2][*buffer_text] >> 5;
-          continue;
+          // continue;
+          break;
         case 0xFCu:
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object = ff7_externals.menu_jafont_4_graphics_object;
-          kanjiDetected = true;
+          // kanjiDetected = true;
           charWidth = charWidthData[3][*buffer_text] & 0x1F;
           leftPadding = charWidthData[3][*buffer_text] >> 5;
-          continue;
+          break;
+          // continue;
         case 0xFDu:
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object = ff7_externals.menu_jafont_5_graphics_object;
-          kanjiDetected = true;
+          // kanjiDetected = true;
           charWidth = charWidthData[4][*buffer_text] & 0x1F;
           leftPadding = charWidthData[4][*buffer_text] >> 5;
-          continue;
+          //continue;
+          break;
         case 0xFEu:
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
+          // but what about when 0xFEu is an opcode?  we seem to be jsut ignoring this.
           graphics_object = ff7_externals.menu_jafont_6_graphics_object;
-          kanjiDetected = true;
+          // kanjiDetected = true;
           charWidth = charWidthData[5][*buffer_text] & 0x1F;
           leftPadding = charWidthData[5][*buffer_text] >> 5;
-          continue;
+          // continue;
+          break;
         default:
-          if(!kanjiDetected)
-          {
+          // if(!kanjiDetected) // we get here, we didn't get a multibyte character
+          // {
             graphics_object = ff7_externals.menu_jafont_1_graphics_object;
             charWidth = charWidthData[0][*buffer_text] & 0x1F;
             leftPadding = charWidthData[0][*buffer_text] >> 5;
-          }
-          kanjiDetected = false;
-          break;
+          // }
+          // kanjiDetected = false;
+          // break; // at end, break does nothing.
       }
 
       offset_character_x = 0;
-      switch ( *buffer_text )
+      switch ( *buffer_text ) // by now we have already passed by the FE byte
       {
-        /*case 0xFAu:
+        /*case 0xFAu: // can't happen, correct to ignore
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object_v_in_byte = 132;
           text_offset_spacing = 231;
           goto LABEL_39;
-        case 0xFBu:
+        case 0xFBu: // can't happen
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object_v_in_byte = 0;
           offset_character_x = 16;
           text_offset_spacing = 441;
           goto LABEL_39;
-        case 0xFCu:
+        case 0xFCu:  // cant' happen
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object_v_in_byte = 132;
           offset_character_x = 16;
           text_offset_spacing = 672;
           goto LABEL_39;
-        case 0xFDu:
+        case 0xFDu: // cant' happen
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
           ++buffer_text;
           graphics_object_v_in_byte = 132;
           text_offset_spacing = 882;
           goto LABEL_39;
-        case 0xFEu:
+        case 0xFEu:  // skipping thsi cause a problem
           ++buffer_text;
           ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
-          if ( *buffer_text < 0xD2u )
+          if ( *buffer_text < 0xD2u ) // grab character to print
           {
             graphics_object_v_in_byte = 132;
             offset_character_x = 16;
             text_offset_spacing = 1092;
             goto LABEL_39;
           }
-          ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0);
-          if ( *buffer_text < 0xDAu )
+          ++(*ff7_externals.field_text_box_curr_n_characters_DC3CB0); // not sure why
+          if ( *buffer_text < 0xDAu ) // it's a color opcode, set the external for text color
           {
             (*ff7_externals.word_91F028) = *buffer_text++ - 210;
             break;
           }
-          if ( *buffer_text == 218 )
+          if ( *buffer_text == 218 ) // flash opcode, enable flash effect by settign external
           {
             (*ff7_externals.word_DC3CC0) ^= 1u;
             ++buffer_text;
             break;
           }
-          if ( *buffer_text == 219 )
+          if ( *buffer_text == 219 ) // rainbow opcode, ennable external rainbow effect
           {
             (*ff7_externals.word_DC3CC4) ^= 1u;
             ++buffer_text;
@@ -621,22 +627,22 @@ __int16 field_submit_draw_text_640x480_6E706D_jp(
           }
           if ( *buffer_text != 233 )
             goto LABEL_39;
-          (*ff7_externals.dword_DC3CD4) ^= 1u;
+          (*ff7_externals.dword_DC3CD4) ^= 1u; // set new screen flag
           ++buffer_text;
           break;*/
         default:
-          if ( *buffer_text < 0xF6u || *buffer_text > 0xF9u )
+          if ( *buffer_text < 0xF6u || *buffer_text > 0xF9u ) // not a button prompt
           {
             text_offset_spacing = 0;
             graphics_object_v_in_byte = 0;
 LABEL_39:
-            if ( (*ff7_externals.word_DC3CC0) || (*ff7_externals.word_DC3CC4) )
+            if ( (*ff7_externals.word_DC3CC0) || (*ff7_externals.word_DC3CC4) ) // check for flash and rainbow flags, but they weren't set above, so this is currently dead code.
             {
-              if ( (*ff7_externals.word_DC3CC4) )
+              if ( (*ff7_externals.word_DC3CC4) )  //rainbow
               {
-                character_n_shapes = ((unsigned __int8)((*ff7_externals.word_DC3CC8) >> 2) - character_count) & 7;
+                character_n_shapes = ((unsigned __int8)((*ff7_externals.word_DC3CC8) >> 2) - character_count) & 7;  // pick color based on chaacter count
               }
-              else if ( (((*ff7_externals.word_DC3CC8) >> 2) & 1) != 0 )
+              else if ( (((*ff7_externals.word_DC3CC8) >> 2) & 1) != 0 )  // this must be implementation of flash
               {
                 character_n_shapes = (*ff7_externals.word_91F028);
               }
@@ -652,7 +658,7 @@ LABEL_39:
             }
             else
             {
-              character_n_shapes = (*ff7_externals.word_91F028);
+              character_n_shapes = (*ff7_externals.word_91F028); // since the code that changes this is enver ran, color remains white always.
             }
             current_character = *buffer_text;
             character = current_character;
