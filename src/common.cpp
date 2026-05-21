@@ -3090,14 +3090,14 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 				if (strstr(basedir, "workingdir") != NULL)
 				{
-					if (fileExists("../../steam_api64.dll"))
+					if (fileExists("../../goggame-1698970154.info"))
+						ffnx_trace("Detected GOG edition.\n");
+					else if (fileExists("../../steam_api64.dll"))
 					{
 						ff7_steam_rerelease_edition = true;
 
 						ffnx_trace("Detected Steam Rerelease edition.\n");
 					}
-					else if(fileExists("../../goggame-1698970154.info"))
-						ffnx_trace("Detected GOG edition.\n");
 					else
 						ffnx_trace("Detected Windows Store edition.\n");
 
