@@ -1,6 +1,7 @@
 ## FF7
 
 - Enable japanese text support if ff7_ja.exe is being ran.  Unfinished, but appears stable.
+- JP name-entry screen: restore the 3-mode (hiragana/katakana/eisuu) layout, fix the garbled bottom rows and initial-mode shift, and reset to hiragana on each entry.
 
 # Next
 
